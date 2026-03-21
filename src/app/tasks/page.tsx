@@ -51,22 +51,15 @@ export default function TasksPage() {
 
   const handleCreate = async () => {
     if (!title || !desc || !user || !partner) return;
-    const isSnow = user.toLowerCase() === 'snow';
     
-    if (isSnow && points < 100) {
-      alert("Not enough points! Snow needs 100 pts to assign a task.");
-      return;
-    }
+    // Extra safety: only Shikhar can trigger task creation
+    if (user.toLowerCase() !== 'shikhar') return;
 
     try {
-      if (isSnow) {
-        await updateDoc(doc(db, "userProfiles", user), { points: increment(-100) });
-      }
-
       await addDoc(collection(db, "tasks"), {
         title,
         description: desc,
-        rewardPoints: isSnow ? 0 : Number(reward),
+        rewardPoints: Number(reward),
         assignedBy: user,
         assignedTo: partner,
         status: "pending",
@@ -161,15 +154,20 @@ export default function TasksPage() {
                   </div>
                 </motion.div>
               ))}
+              {displayedTasks.length === 0 && (
+                <div className="text-center py-20 text-slate-300 italic">No tasks here yet.</div>
+              )}
             </div>
 
-            <motion.button 
-               whileTap={{ scale: 0.9 }}
-               onClick={() => setView('create')}
-               className="fixed bottom-6 right-6 w-14 h-14 bg-rose-500 text-white rounded-full shadow-lg flex items-center justify-center z-20"
-            >
-              <Plus size={28} />
-            </motion.button>
+            {user?.toLowerCase() === 'shikhar' && (
+              <motion.button 
+                 whileTap={{ scale: 0.9 }}
+                 onClick={() => setView('create')}
+                 className="fixed bottom-6 right-6 w-14 h-14 bg-rose-500 text-white rounded-full shadow-lg flex items-center justify-center z-20"
+              >
+                <Plus size={28} />
+              </motion.button>
+            )}
           </div>
         </>
       )}
@@ -189,17 +187,10 @@ export default function TasksPage() {
               <label className="block text-sm font-bold text-slate-700 mb-2">Description</label>
               <textarea className="w-full p-4 rounded-xl bg-slate-50 outline-none h-40" placeholder="Details..." value={desc} onChange={e => setDesc(e.target.value)} />
             </div>
-            {user?.toLowerCase() !== 'snow' && (
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Reward Points</label>
-                <input type="number" className="w-full p-4 rounded-xl bg-slate-50 outline-none" value={reward} onChange={e => setReward(Number(e.target.value))} />
-              </div>
-            )}
-            {user?.toLowerCase() === 'snow' && (
-              <div className="bg-orange-50 p-4 rounded-xl text-orange-800 text-sm">
-                As Snow, assigning this task costs a 100 point fee.
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Reward Points</label>
+              <input type="number" className="w-full p-4 rounded-xl bg-slate-50 outline-none" value={reward} onChange={e => setReward(Number(e.target.value))} />
+            </div>
           </form>
           <div className="p-4 border-t sticky bottom-0 bg-white">
             <button onClick={handleCreate} className="w-full bg-rose-500 text-white py-4 rounded-xl font-bold">Assign Task</button>
