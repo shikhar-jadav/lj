@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
 import { 
@@ -12,10 +12,15 @@ import {
   Coins, 
   User, 
   ChevronLeft, 
-  Upload 
+  Upload,
+  Image as ImageIcon,
+  Film,
+  Music,
+  FileIcon,
+  Loader2
 } from "lucide-react";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import { 
   collection, 
   query, 
@@ -24,11 +29,13 @@ import {
   doc, 
   increment 
 } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { 
   addDocumentNonBlocking, 
   updateDocumentNonBlocking 
 } from "@/firebase/non-blocking-updates";
 import Link from "next/link";
+import { toast } from "@/hooks/use-toast";
 
 export default function TasksPage() {
   const { user, partner } = useSoulAuth();
@@ -43,6 +50,9 @@ export default function TasksPage() {
   const [desc, setDesc] = useState('');
   const [reward, setReward] = useState(50);
   const [proof, setProof] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -67,7 +77,7 @@ export default function TasksPage() {
   const handleCreate = () => {
     if (!title || !desc || !user || !partner) return;
     
-    // Only Shikhar can trigger task creation
+    // Only Shikhar can trigger task creation in this specific logic
     if (user.toLowerCase() !== 'shikhar') return;
 
     const taskData = {
@@ -83,37 +93,78 @@ export default function TasksPage() {
 
     addDocumentNonBlocking(collection(db, "tasks"), taskData);
 
-    // Immediate UI feedback
     setView('list');
     setTitle(''); 
     setDesc('');
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (!selectedTask || !user) return;
     
-    const taskRef = doc(db, "tasks", selectedTask.id);
-    const userRef = doc(db, "userProfiles", user);
+    setIsUploading(true);
+    let mediaUrl = "";
 
-    updateDocumentNonBlocking(taskRef, {
-      status: "completed",
-      submissionText: proof,
-      completedAt: new Date().toISOString()
-    });
+    try {
+      if (selectedFile) {
+        const fileRef = ref(storage, `tasks/${selectedTask.id}/${Date.now()}_${selectedFile.name}`);
+        const snapshot = await uploadBytes(fileRef, selectedFile);
+        mediaUrl = await getDownloadURL(snapshot.ref);
+      }
 
-    updateDocumentNonBlocking(userRef, { 
-      points: increment(selectedTask.rewardPoints),
-      updatedAt: new Date().toISOString()
-    });
+      const taskRef = doc(db, "tasks", selectedTask.id);
+      const userRef = doc(db, "userProfiles", user);
 
-    // Immediate UI feedback
-    setView('list');
-    setProof('');
+      updateDocumentNonBlocking(taskRef, {
+        status: "completed",
+        submissionText: proof,
+        submissionImageUrl: mediaUrl,
+        completedAt: new Date().toISOString()
+      });
+
+      updateDocumentNonBlocking(userRef, { 
+        points: increment(selectedTask.rewardPoints),
+        updatedAt: new Date().toISOString()
+      });
+
+      setView('list');
+      setProof('');
+      setSelectedFile(null);
+    } catch (err) {
+      console.error("Failed to complete task:", err);
+      toast({
+        variant: "destructive",
+        title: "Upload Failed",
+        description: "Could not save your proof. Please try again."
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const displayedTasks = tasks.filter(t => 
     filter === 'mine' ? t.assignedToId === user : t.assignedById === user
   );
+
+  const getFileIcon = (file: File) => {
+    if (file.type.startsWith('image/')) return <ImageIcon size={24} />;
+    if (file.type.startsWith('video/')) return <Film size={24} />;
+    if (file.type.startsWith('audio/')) return <Music size={24} />;
+    return <FileIcon size={24} />;
+  };
+
+  const renderMedia = (url: string) => {
+    if (!url) return null;
+    
+    // Simple heuristic for media type based on common extensions in Firebase Storage URLs
+    const lowerUrl = url.toLowerCase();
+    if (lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('.ogg')) {
+      return <video src={url} controls className="w-full rounded-xl mt-4 bg-black aspect-video" />;
+    }
+    if (lowerUrl.includes('.mp3') || lowerUrl.includes('.wav') || lowerUrl.includes('.m4a')) {
+      return <audio src={url} controls className="w-full mt-4" />;
+    }
+    return <img src={url} alt="Proof" className="w-full rounded-xl mt-4 object-cover shadow-md" />;
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 overflow-hidden">
@@ -252,32 +303,77 @@ export default function TasksPage() {
                <h3 className="text-xs font-bold text-slate-400 uppercase mb-2">Description</h3>
                <p className="text-slate-800 leading-relaxed text-base">{selectedTask.description}</p>
             </div>
+            
             {selectedTask.status === 'completed' && (
                <div className="bg-emerald-50 rounded-2xl p-6 text-center border border-emerald-100">
                  <CheckCircle size={32} className="mx-auto mb-2 text-emerald-500" />
                  <h3 className="font-bold text-emerald-800">Completed!</h3>
                  <p className="text-sm text-emerald-600 mt-2 italic">"{selectedTask.submissionText}"</p>
+                 {renderMedia(selectedTask.submissionImageUrl)}
                </div>
             )}
+
             {selectedTask.status === 'pending' && selectedTask.assignedToId === user && (
-              <div className="space-y-4">
-                <h3 className="font-bold flex items-center gap-2 text-slate-800"><Upload size={20} className="text-rose-500"/> Submission</h3>
-                <textarea 
-                  className="w-full p-4 bg-white border border-slate-200 rounded-2xl outline-none min-h-[120px] focus:ring-2 focus:ring-rose-200 text-slate-900" 
-                  placeholder="Note about completion..." 
-                  value={proof} 
-                  onChange={e => setProof(e.target.value)}
-                />
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <h3 className="font-bold flex items-center gap-2 text-slate-800"><Upload size={20} className="text-rose-500"/> Proof of Completion</h3>
+                  
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*,video/*,audio/*"
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  />
+
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full h-32 border-2 border-dashed border-rose-200 rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:bg-rose-50 hover:border-rose-300 transition-all bg-white overflow-hidden"
+                  >
+                    {selectedFile ? (
+                      <div className="flex flex-col items-center gap-2 text-rose-500">
+                        {getFileIcon(selectedFile)}
+                        <span className="text-sm font-medium truncate max-w-[200px]">{selectedFile.name}</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="p-3 bg-rose-50 rounded-full text-rose-300">
+                          <ImageIcon size={24} />
+                        </div>
+                        <span className="text-sm font-medium">Add Image, Video, or Audio</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="font-bold text-slate-800">Completion Note</h3>
+                  <textarea 
+                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl outline-none min-h-[120px] focus:ring-2 focus:ring-rose-200 text-slate-900" 
+                    placeholder="Tell your love about the task..." 
+                    value={proof} 
+                    onChange={e => setProof(e.target.value)}
+                  />
+                </div>
               </div>
             )}
           </div>
+
           {selectedTask.status === 'pending' && selectedTask.assignedToId === user && (
             <div className="p-4 bg-white border-t sticky bottom-0">
               <button 
                 onClick={handleComplete} 
-                className="w-full bg-emerald-500 text-white py-4 rounded-xl font-bold active:scale-95 transition-transform"
+                disabled={isUploading || !proof}
+                className="w-full bg-emerald-500 text-white py-4 rounded-xl font-bold active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                Submit & Claim
+                {isUploading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={20} />
+                    Uploading...
+                  </>
+                ) : (
+                  'Submit & Claim'
+                )}
               </button>
             </div>
           )}
