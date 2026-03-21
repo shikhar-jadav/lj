@@ -151,7 +151,7 @@ export default function TasksPage() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24 text-slate-900">
               {displayedTasks.map(task => (
                 <motion.div
                   key={task.id}
@@ -165,7 +165,7 @@ export default function TasksPage() {
                       {task.status}
                     </div>
                   </div>
-                  <p className="text-sm text-slate-500 line-clamp-2">{task.description}</p>
+                  <p className="text-sm text-slate-600 line-clamp-2">{task.description}</p>
                   <div className="flex justify-between items-center mt-2 border-t pt-3">
                     <div className="flex items-center gap-1.5 text-xs text-slate-400">
                       <User size={14} /> {task.assignedById}
@@ -204,7 +204,7 @@ export default function TasksPage() {
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Task Title</label>
               <input 
-                className="w-full p-4 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-rose-200 text-slate-900" 
+                className="w-full p-4 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-400 focus:bg-white outline-none transition-all text-slate-900" 
                 placeholder="e.g., Wash the dishes" 
                 value={title} 
                 onChange={e => setTitle(e.target.value)} 
@@ -213,7 +213,7 @@ export default function TasksPage() {
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Description</label>
               <textarea 
-                className="w-full p-4 rounded-xl bg-slate-50 outline-none h-40 focus:ring-2 focus:ring-rose-200 text-slate-900" 
+                className="w-full p-4 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-400 focus:bg-white outline-none h-40 text-slate-900" 
                 placeholder="Details..." 
                 value={desc} 
                 onChange={e => setDesc(e.target.value)} 
@@ -223,7 +223,7 @@ export default function TasksPage() {
               <label className="block text-sm font-bold text-slate-700 mb-2">Reward Points</label>
               <input 
                 type="number" 
-                className="w-full p-4 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-rose-200 text-slate-900" 
+                className="w-full p-4 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-400 focus:bg-white outline-none text-slate-900" 
                 value={reward} 
                 onChange={e => setReward(Number(e.target.value))} 
               />
@@ -242,21 +242,21 @@ export default function TasksPage() {
 
       {view === 'detail' && selectedTask && (
         <div className="flex flex-col h-screen bg-slate-50">
-          <div className="bg-white p-4 flex items-center gap-3 border-b sticky top-0 z-10">
-            <button onClick={() => setView('list')} className="p-2 -ml-2"><ChevronLeft size={24} /></button>
-            <span className="font-bold text-lg truncate flex-1">{selectedTask.title}</span>
+          <div className="bg-white p-4 flex items-center gap-3 border-b sticky top-0 z-10 shadow-sm">
+            <button onClick={() => setView('list')} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full"><ChevronLeft size={24} /></button>
+            <span className="font-bold text-lg truncate flex-1 text-slate-900">{selectedTask.title}</span>
             <div className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold">{selectedTask.rewardPoints} pts</div>
           </div>
           <div className="p-4 flex-1 overflow-y-auto pb-24">
-            <div className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+            <div className="bg-white rounded-2xl p-6 shadow-sm mb-6 border border-slate-100">
                <h3 className="text-xs font-bold text-slate-400 uppercase mb-2">Description</h3>
-               <p className="text-slate-700 leading-relaxed text-base">{selectedTask.description}</p>
+               <p className="text-slate-800 leading-relaxed text-base">{selectedTask.description}</p>
             </div>
             {selectedTask.status === 'completed' && (
-               <div className="bg-emerald-50 rounded-2xl p-6 text-center">
+               <div className="bg-emerald-50 rounded-2xl p-6 text-center border border-emerald-100">
                  <CheckCircle size={32} className="mx-auto mb-2 text-emerald-500" />
                  <h3 className="font-bold text-emerald-800">Completed!</h3>
-                 <p className="text-sm text-emerald-600 mt-2">"{selectedTask.submissionText}"</p>
+                 <p className="text-sm text-emerald-600 mt-2 italic">"{selectedTask.submissionText}"</p>
                </div>
             )}
             {selectedTask.status === 'pending' && selectedTask.assignedToId === user && (
