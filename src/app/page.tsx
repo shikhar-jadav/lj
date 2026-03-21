@@ -19,11 +19,15 @@ export default function HomePage() {
     if (!loading && !user) {
       router.push("/login");
     }
-  }, [user, loading]);
+  }, [user, loading, router]);
 
   useEffect(() => {
     if (user) {
-      const unsub = onSnapshot(doc(db, "userProfiles", user), (doc) => setUserData(doc.data()));
+      const unsub = onSnapshot(doc(db, "userProfiles", user), (doc) => {
+        if (doc.exists()) {
+          setUserData(doc.data());
+        }
+      });
       return () => unsub();
     }
   }, [user]);
@@ -75,7 +79,9 @@ export default function HomePage() {
           <p className="text-rose-900 font-serif italic text-lg leading-relaxed">
             "You are the finest, loveliest, tenderest, and most beautiful person I have ever known."
           </p>
-          <div className="mt-4 text-xs font-bold text-rose-300 uppercase tracking-widest">Welcome Home, {user}</div>
+          <div className="mt-4 text-xs font-bold text-rose-300 uppercase tracking-widest">
+            Welcome Home, {user}
+          </div>
         </motion.div>
       </div>
     </div>

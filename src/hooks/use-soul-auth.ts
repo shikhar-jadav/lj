@@ -3,8 +3,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { signInAnonymously } from "firebase/auth";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 const PARTNER_NAMES = ["Snow", "Shikhar"];
 
@@ -14,21 +15,27 @@ export function useSoulAuth() {
   const router = useRouter();
 
   useEffect(() => {
-    const stored = localStorage.getItem("soul-user");
-    if (stored) {
-      const matched = PARTNER_NAMES.find(n => n.toLowerCase() === stored.toLowerCase());
-      if (matched) {
-        setUser(matched);
-        // Ensure Firebase Auth is synced if we have a local session
-        if (!auth.currentUser) {
-          signInAnonymously(auth).catch(console.error);
+    const checkAuth = async () => {
+      const stored = localStorage.getItem("soul-user");
+      if (stored) {
+        const matched = PARTNER_NAMES.find(n => n.toLowerCase() === stored.toLowerCase());
+        if (matched) {
+          setUser(matched);
+          if (!auth.currentUser) {
+            try {
+              await signInAnonymously(auth);
+            } catch (e) {
+              console.error("Silent sign-in failed", e);
+            }
+          }
+        } else {
+          localStorage.removeItem("soul-user");
+          setUser(null);
         }
-      } else {
-        localStorage.removeItem("soul-user");
-        setUser(null);
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+    checkAuth();
   }, []);
 
   const login = async (name: string) => {
@@ -38,6 +45,21 @@ export function useSoulAuth() {
     if (matched) {
       try {
         await signInAnonymously(auth);
+        
+        // Ensure user profile exists in Firestore
+        const userRef = doc(db, "userProfiles", matched);
+        const userSnap = await getDoc(userRef);
+        
+        if (!userSnap.exists()) {
+          await setDoc(userRef, {
+            id: matched,
+            name: matched,
+            points: matched === "Shikhar" ? 500 : 0,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+        }
+
         localStorage.setItem("soul-user", matched);
         setUser(matched);
         return true;
