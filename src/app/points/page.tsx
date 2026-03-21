@@ -8,7 +8,7 @@ import { ChevronLeft, Coins, Trophy, Plus, ArrowRightLeft } from "lucide-react";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot, collection, query, where, orderBy } from "firebase/firestore";
+import { doc, onSnapshot, collection, query } from "firebase/firestore";
 
 export default function PointsPage() {
   const { user } = useSoulAuth();
@@ -18,22 +18,34 @@ export default function PointsPage() {
 
   useEffect(() => {
     if (!user) return;
+    
+    // 1. Listen to the user's total points
     const unsubPoints = onSnapshot(doc(db, "userProfiles", user), (doc) => {
       if (doc.exists()) {
         setPoints(doc.data()?.points || 0);
       }
     });
 
-    // Subscribing to transactions if they exist in the schema
-    const q = query(
-      collection(db, "userProfiles", user, "pointTransactions"),
-      orderBy("timestamp", "desc")
-    );
-    
-    const unsubTransactions = onSnapshot(q, (snapshot) => {
-      setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    // 2. Listen to the transactions history
+    // We remove the orderBy from the query to avoid index issues in the prototype
+    // and sort in-memory instead for better reliability.
+    const transactionsRef = collection(db, "userProfiles", user, "pointTransactions");
+    const unsubTransactions = onSnapshot(transactionsRef, (snapshot) => {
+      const txs = snapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        ...doc.data() 
+      }));
+      
+      // Sort by timestamp (descending) in-memory
+      txs.sort((a: any, b: any) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
+      });
+
+      setTransactions(txs);
     }, (error) => {
-      console.warn("Transactions listener error (expected if collection is empty):", error);
+      console.error("Transactions listener error:", error);
     });
 
     return () => {
@@ -82,7 +94,7 @@ export default function PointsPage() {
                 <div className="min-w-0">
                   <p className="font-bold text-slate-700 text-sm truncate pr-2">{t.description || t.type}</p>
                   <p className="text-xs text-slate-400">
-                    {t.timestamp?.toDate ? t.timestamp.toDate().toLocaleDateString() : (t.timestamp || "Recently")}
+                    {t.timestamp?.toDate ? t.timestamp.toDate().toLocaleDateString() : (t.timestamp ? "Just now" : "Processing...")}
                   </p>
                 </div>
               </div>
