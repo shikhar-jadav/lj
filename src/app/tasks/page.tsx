@@ -67,7 +67,7 @@ export default function TasksPage() {
   const handleCreate = () => {
     if (!title || !desc || !user || !partner) return;
     
-    // Extra safety: only Shikhar can trigger task creation
+    // Only Shikhar can trigger task creation
     if (user.toLowerCase() !== 'shikhar') return;
 
     const taskData = {
@@ -77,7 +77,7 @@ export default function TasksPage() {
       assignedById: user,
       assignedToId: partner,
       status: "pending",
-      assignedAt: new Date().toISOString(), // Using ISO string to match backend.json format expectations
+      assignedAt: new Date().toISOString(),
       createdAt: serverTimestamp()
     };
 
@@ -111,7 +111,6 @@ export default function TasksPage() {
     setProof('');
   };
 
-  // Aligning filter with backend.json field names (assignedToId, assignedById)
   const displayedTasks = tasks.filter(t => 
     filter === 'mine' ? t.assignedToId === user : t.assignedById === user
   );
@@ -205,7 +204,7 @@ export default function TasksPage() {
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Task Title</label>
               <input 
-                className="w-full p-4 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-rose-200" 
+                className="w-full p-4 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-rose-200 text-slate-900" 
                 placeholder="e.g., Wash the dishes" 
                 value={title} 
                 onChange={e => setTitle(e.target.value)} 
@@ -214,7 +213,7 @@ export default function TasksPage() {
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Description</label>
               <textarea 
-                className="w-full p-4 rounded-xl bg-slate-50 outline-none h-40 focus:ring-2 focus:ring-rose-200" 
+                className="w-full p-4 rounded-xl bg-slate-50 outline-none h-40 focus:ring-2 focus:ring-rose-200 text-slate-900" 
                 placeholder="Details..." 
                 value={desc} 
                 onChange={e => setDesc(e.target.value)} 
@@ -224,7 +223,7 @@ export default function TasksPage() {
               <label className="block text-sm font-bold text-slate-700 mb-2">Reward Points</label>
               <input 
                 type="number" 
-                className="w-full p-4 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-rose-200" 
+                className="w-full p-4 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-rose-200 text-slate-900" 
                 value={reward} 
                 onChange={e => setReward(Number(e.target.value))} 
               />
@@ -262,9 +261,9 @@ export default function TasksPage() {
             )}
             {selectedTask.status === 'pending' && selectedTask.assignedToId === user && (
               <div className="space-y-4">
-                <h3 className="font-bold flex items-center gap-2"><Upload size={20} className="text-rose-500"/> Submission</h3>
+                <h3 className="font-bold flex items-center gap-2 text-slate-800"><Upload size={20} className="text-rose-500"/> Submission</h3>
                 <textarea 
-                  className="w-full p-4 bg-white border rounded-2xl outline-none min-h-[120px] focus:ring-2 focus:ring-rose-200" 
+                  className="w-full p-4 bg-white border border-slate-200 rounded-2xl outline-none min-h-[120px] focus:ring-2 focus:ring-rose-200 text-slate-900" 
                   placeholder="Note about completion..." 
                   value={proof} 
                   onChange={e => setProof(e.target.value)}
