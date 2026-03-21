@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-const PARTNER_NAMES = ["Snow", "Shikhar"]; // Updated names for the private app
+const PARTNER_NAMES = ["Snow", "Shikhar"];
 
 export function useSoulAuth() {
   const [user, setUser] = useState<string | null>(null);
@@ -12,16 +12,27 @@ export function useSoulAuth() {
 
   useEffect(() => {
     const stored = localStorage.getItem("soul-user");
-    if (stored && PARTNER_NAMES.includes(stored)) {
-      setUser(stored);
+    if (stored) {
+      // Check for match case-insensitively
+      const matched = PARTNER_NAMES.find(n => n.toLowerCase() === stored.toLowerCase());
+      if (matched) {
+        setUser(matched);
+      } else {
+        // If names changed and old data exists, clear it
+        localStorage.removeItem("soul-user");
+        setUser(null);
+      }
     }
     setLoading(false);
   }, []);
 
   const login = (name: string) => {
-    if (PARTNER_NAMES.includes(name)) {
-      localStorage.setItem("soul-user", name);
-      setUser(name);
+    const cleanName = name.trim().toLowerCase();
+    const matched = PARTNER_NAMES.find(n => n.toLowerCase() === cleanName);
+    
+    if (matched) {
+      localStorage.setItem("soul-user", matched);
+      setUser(matched);
       return true;
     }
     return false;
