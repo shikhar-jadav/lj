@@ -46,10 +46,14 @@ export default function TasksPage() {
   const [filter, setFilter] = useState<'mine' | 'assigned'>('mine');
   const [points, setPoints] = useState(0);
 
-  // Form State
+  // Form State (Creation)
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [reward, setReward] = useState(50);
+  const [demoFile, setDemoFile] = useState<File | null>(null);
+  const demoFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Form State (Completion)
   const [proof, setProof] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -75,62 +79,81 @@ export default function TasksPage() {
     };
   }, [user]);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!title || !desc || !user || !partner) return;
     
     const isSnow = user.toLowerCase() === 'snow';
 
-    // Snow logic: Requires 1000 points and deducts them
-    if (isSnow) {
-      if (points < 1000) {
-        toast({
-          variant: "destructive",
-          title: "Insufficient Points",
-          description: "You need 1000 points to assign a task.",
-        });
-        return;
-      }
-
-      // Deduct 1000 points for Snow
-      const userRef = doc(db, "userProfiles", user);
-      const transactionsRef = collection(db, "userProfiles", user, "pointTransactions");
-
-      updateDocumentNonBlocking(userRef, { 
-        points: increment(-1000),
-        updatedAt: new Date().toISOString()
+    if (isSnow && points < 1000) {
+      toast({
+        variant: "destructive",
+        title: "Insufficient Points",
+        description: "You need 1000 points to assign a task.",
       });
-
-      addDocumentNonBlocking(transactionsRef, {
-        userId: user,
-        amount: -1000,
-        type: "task_assignment_fee",
-        description: `Assigned task: ${title}`,
-        timestamp: serverTimestamp()
-      });
+      return;
     }
 
-    const taskData = {
-      title,
-      description: desc,
-      // If Snow, we use a fixed or hidden reward value (defaults to 50 in state)
-      rewardPoints: Number(reward),
-      assignedById: user,
-      assignedToId: partner,
-      status: "pending",
-      assignedAt: new Date().toISOString(),
-      createdAt: serverTimestamp()
-    };
+    setIsUploading(true);
+    let demoUrl = "";
 
-    addDocumentNonBlocking(collection(db, "tasks"), taskData);
+    try {
+      if (demoFile) {
+        const fileRef = ref(storage, `tasks/demos/${Date.now()}_${demoFile.name}`);
+        const snapshot = await uploadBytes(fileRef, demoFile);
+        demoUrl = await getDownloadURL(snapshot.ref);
+      }
 
-    setView('list');
-    setTitle(''); 
-    setDesc('');
-    
-    toast({
-      title: "Task Assigned!",
-      description: isSnow ? "1000 points deducted from your balance." : "Task sent successfully!",
-    });
+      if (isSnow) {
+        const userRef = doc(db, "userProfiles", user);
+        const transactionsRef = collection(db, "userProfiles", user, "pointTransactions");
+
+        updateDocumentNonBlocking(userRef, { 
+          points: increment(-1000),
+          updatedAt: new Date().toISOString()
+        });
+
+        addDocumentNonBlocking(transactionsRef, {
+          userId: user,
+          amount: -1000,
+          type: "task_assignment_fee",
+          description: `Assigned task: ${title}`,
+          timestamp: serverTimestamp()
+        });
+      }
+
+      const taskData = {
+        title,
+        description: desc,
+        rewardPoints: isSnow ? 0 : Number(reward),
+        assignedById: user,
+        assignedToId: partner,
+        status: "pending",
+        demoMediaUrl: demoUrl,
+        assignedAt: new Date().toISOString(),
+        createdAt: serverTimestamp()
+      };
+
+      addDocumentNonBlocking(collection(db, "tasks"), taskData);
+
+      setView('list');
+      setTitle(''); 
+      setDesc('');
+      setDemoFile(null);
+      
+      toast({
+        title: "Task Assigned!",
+        description: isSnow ? "1000 points deducted from your balance." : "Task sent successfully!",
+      });
+    } catch (err) {
+      console.error("Failed to create task:", err);
+      toast({
+        variant: "destructive",
+        title: "Failed to assign task",
+        description: "An error occurred. Please try again."
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleComplete = async () => {
@@ -141,7 +164,7 @@ export default function TasksPage() {
 
     try {
       if (selectedFile) {
-        const fileRef = ref(storage, `tasks/${selectedTask.id}/${Date.now()}_${selectedFile.name}`);
+        const fileRef = ref(storage, `tasks/completions/${selectedTask.id}/${Date.now()}_${selectedFile.name}`);
         const snapshot = await uploadBytes(fileRef, selectedFile);
         mediaUrl = await getDownloadURL(snapshot.ref);
       }
@@ -150,7 +173,6 @@ export default function TasksPage() {
       const userRef = doc(db, "userProfiles", user);
       const transactionsRef = collection(db, "userProfiles", user, "pointTransactions");
 
-      // 1. Update Task Status
       updateDocumentNonBlocking(taskRef, {
         status: "completed",
         submissionText: proof,
@@ -158,13 +180,11 @@ export default function TasksPage() {
         completedAt: new Date().toISOString()
       });
 
-      // 2. Increment User Points
       updateDocumentNonBlocking(userRef, { 
         points: increment(selectedTask.rewardPoints),
         updatedAt: new Date().toISOString()
       });
 
-      // 3. Create Transaction Record for History
       addDocumentNonBlocking(transactionsRef, {
         userId: user,
         amount: selectedTask.rewardPoints,
@@ -209,13 +229,13 @@ export default function TasksPage() {
     if (!url) return null;
     
     const lowerUrl = url.toLowerCase();
-    if (lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('.ogg')) {
-      return <video src={url} controls className="w-full rounded-xl mt-4 bg-black aspect-video" />;
+    if (lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('.ogg') || lowerUrl.includes('video')) {
+      return <video src={url} controls className="w-full rounded-xl mt-4 bg-black aspect-video shadow-lg" />;
     }
-    if (lowerUrl.includes('.mp3') || lowerUrl.includes('.wav') || lowerUrl.includes('.m4a')) {
+    if (lowerUrl.includes('.mp3') || lowerUrl.includes('.wav') || lowerUrl.includes('.m4a') || lowerUrl.includes('audio')) {
       return <audio src={url} controls className="w-full mt-4" />;
     }
-    return <img src={url} alt="Proof" className="w-full rounded-xl mt-4 object-cover shadow-md" />;
+    return <img src={url} alt="Proof" className="w-full rounded-xl mt-4 object-cover shadow-lg" />;
   };
 
   const canCreateTask = user?.toLowerCase() === 'shikhar' || (user?.toLowerCase() === 'snow' && points >= 1000);
@@ -332,6 +352,36 @@ export default function TasksPage() {
                 onChange={e => setDesc(e.target.value)} 
               />
             </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-bold text-slate-700 mb-2">Reference/Demo Media (Optional)</label>
+              <input 
+                type="file" 
+                ref={demoFileInputRef} 
+                className="hidden" 
+                accept="image/*,video/*,audio/*"
+                onChange={(e) => setDemoFile(e.target.files?.[0] || null)}
+              />
+              <button 
+                onClick={() => demoFileInputRef.current?.click()}
+                className="w-full h-32 border-2 border-dashed border-rose-200 rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:bg-rose-50 hover:border-rose-300 transition-all bg-white"
+              >
+                {demoFile ? (
+                  <div className="flex flex-col items-center gap-2 text-rose-500">
+                    {getFileIcon(demoFile)}
+                    <span className="text-sm font-medium truncate max-w-[200px]">{demoFile.name}</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="p-3 bg-rose-50 rounded-full text-rose-300">
+                      <ImageIcon size={24} />
+                    </div>
+                    <span className="text-sm font-medium">Add Image, Video, or Audio Reference</span>
+                  </>
+                )}
+              </button>
+            </div>
+
             {user?.toLowerCase() !== 'snow' && (
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">Reward Points</label>
@@ -347,15 +397,23 @@ export default function TasksPage() {
           <div className="p-4 border-t sticky bottom-0 bg-white">
             <button 
               onClick={handleCreate} 
-              className="w-full bg-rose-500 text-white py-4 rounded-xl font-bold active:scale-95 transition-transform flex items-center justify-center gap-2"
+              disabled={isUploading || !title || !desc}
+              className="w-full bg-rose-500 text-white py-4 rounded-xl font-bold active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {user?.toLowerCase() === 'snow' ? (
+              {isUploading ? (
                 <>
-                  <Coins size={20} />
-                  Assign (-1000 pts)
+                  <Loader2 className="animate-spin" size={20} />
+                  Creating Task...
                 </>
               ) : (
-                'Assign Task'
+                user?.toLowerCase() === 'snow' ? (
+                  <>
+                    <Coins size={20} />
+                    Assign (-1000 pts)
+                  </>
+                ) : (
+                  'Assign Task'
+                )
               )}
             </button>
           </div>
@@ -373,6 +431,12 @@ export default function TasksPage() {
             <div className="bg-white rounded-2xl p-6 shadow-sm mb-6 border border-slate-100">
                <h3 className="text-xs font-bold text-slate-400 uppercase mb-2">Description</h3>
                <p className="text-slate-800 leading-relaxed text-base">{selectedTask.description}</p>
+               {selectedTask.demoMediaUrl && (
+                 <div className="mt-4 pt-4 border-t border-slate-50">
+                    <h4 className="text-xs font-bold text-rose-400 uppercase mb-2">Reference/Demo</h4>
+                    {renderMedia(selectedTask.demoMediaUrl)}
+                 </div>
+               )}
             </div>
             
             {selectedTask.status === 'completed' && (
