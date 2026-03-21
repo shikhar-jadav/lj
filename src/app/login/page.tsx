@@ -5,6 +5,8 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { useRouter } from "next/navigation";
+import { FloatingHearts } from "@/components/shared/FloatingHearts";
+import { Sparkles, Heart } from "lucide-react";
 
 export default function LoginPage() {
   const [input, setInput] = useState("");
@@ -25,40 +27,46 @@ export default function LoginPage() {
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }} 
-      animate={{ opacity: 1 }} 
-      className="min-h-screen flex items-center justify-center p-4 md:p-6 bg-gradient-to-br from-rose-100 via-pink-100 to-red-50"
-    >
+    <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
+      <FloatingHearts />
+      
       <motion.div 
-        className="bg-white/60 backdrop-blur-xl p-6 md:p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-white/60"
-        initial={{ y: 20 }}
-        animate={{ y: 0 }}
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="glass p-8 md:p-12 rounded-[3rem] shadow-2xl w-full max-w-md border-white/10 relative z-10 text-center"
       >
-        <div className="text-center mb-8">
+        <div className="mb-8">
           <motion.div 
-            animate={{ scale: [1, 1.1, 1] }} 
-            transition={{ repeat: Infinity, duration: 2 }}
-            className="inline-block text-6xl mb-4"
+            animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }} 
+            transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+            className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/10 border border-primary/20 text-rose-400 mb-6 shadow-[0_0_30px_rgba(204,51,153,0.3)]"
           >
-            ❤️
+            <Heart size={48} fill="currentColor" />
           </motion.div>
-          <h1 className="text-2xl font-bold text-rose-800 font-serif">Welcome Love</h1>
-          <p className="text-rose-600/70 text-sm mt-2">Enter our secret name</p>
+          
+          <div className="space-y-2">
+            <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-accent text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-2">
+              <Sparkles size={12} /> Private Sanctuary
+            </span>
+            <h1 className="text-4xl font-headline font-bold text-white tracking-tight">Welcome Love</h1>
+            <p className="text-rose-300/40 text-[10px] font-bold uppercase tracking-[0.2em] mt-2">Enter our secret name</p>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Hint: s..."
-            className="w-full px-6 py-4 rounded-xl bg-white border-2 border-rose-100 focus:border-rose-400 outline-none text-rose-900 placeholder-rose-300 transition-all text-center text-lg min-h-[56px]"
-          />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="relative">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Hint: s..."
+              className="w-full px-8 py-5 rounded-[2rem] glass border-white/5 focus:border-primary focus:bg-white/5 outline-none text-white placeholder-white/10 transition-all text-center text-xl font-medium tracking-wide shadow-inner"
+            />
+          </div>
           
           <button 
             type="submit"
-            className="w-full px-6 py-4 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 shadow-lg bg-gradient-to-r from-rose-400 to-pink-500 text-white hover:shadow-pink-300/50 active:scale-95 touch-manipulation min-h-[44px]"
+            className="w-full px-8 py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-3 shadow-[0_10px_30px_rgba(204,51,153,0.3)] bg-gradient-to-r from-primary to-accent text-white hover:scale-[1.02] active:scale-95 touch-manipulation text-sm"
           >
             Unlock My Heart
           </button>
@@ -67,16 +75,22 @@ export default function LoginPage() {
         <AnimatePresence>
           {error && (
             <motion.p
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: [0, -10, 10, -5, 5, 0] }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0, x: [0, -5, 5, -5, 5, 0] }}
               exit={{ opacity: 0 }}
-              className="text-red-500 text-center mt-4 font-medium"
+              className="text-rose-400 text-xs mt-6 font-bold uppercase tracking-widest italic"
             >
-              Wrong name 😢 try again
+              Wrong name 😢 Try again
             </motion.p>
           )}
         </AnimatePresence>
+
+        <div className="mt-12 pt-8 border-t border-white/5">
+          <p className="text-rose-300/20 font-serif italic text-xs">
+            A beautiful, private digital world for two.
+          </p>
+        </div>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
