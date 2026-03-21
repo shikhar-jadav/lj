@@ -1,3 +1,40 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "1",
+      "description": "Romantic sunset at the beach",
+      "imageUrl": "https://picsum.photos/seed/soul1/800/600",
+      "imageHint": "sunset beach"
+    },
+    {
+      "id": "2",
+      "description": "Cozy cabin in the woods",
+      "imageUrl": "https://picsum.photos/seed/soul2/800/600",
+      "imageHint": "cozy cabin"
+    },
+    {
+      "id": "3",
+      "description": "Dinner date under the stars",
+      "imageUrl": "https://picsum.photos/seed/soul3/800/600",
+      "imageHint": "dinner date"
+    },
+    {
+      "id": "4",
+      "description": "Walking together in Paris",
+      "imageUrl": "https://picsum.photos/seed/soul4/800/600",
+      "imageHint": "paris walk"
+    },
+    {
+      "id": "5",
+      "description": "Holding hands in the field",
+      "imageUrl": "https://picsum.photos/seed/soul5/800/600",
+      "imageHint": "holding hands"
+    },
+    {
+      "id": "6",
+      "description": "Morning coffee together",
+      "imageUrl": "https://picsum.photos/seed/soul6/800/600",
+      "imageHint": "morning coffee"
+    }
+  ]
 }
