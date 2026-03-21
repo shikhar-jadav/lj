@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -8,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { storage, db } from "@/lib/firebase";
 import { ref, uploadString, getDownloadURL } from "firebase/storage";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 export default function CameraPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -68,10 +69,13 @@ export default function CameraPage() {
       await uploadString(storageRef, capturedImage, 'data_url');
       const downloadURL = await getDownloadURL(storageRef);
       
-      await setDoc(doc(db, "users", user), {
+      await setDoc(doc(db, "userProfiles", user), {
+        id: user,
         name: user,
-        profilePic: downloadURL,
-        updatedAt: new Date().toISOString()
+        profileImageUrl: downloadURL,
+        points: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: serverTimestamp()
       }, { merge: true });
 
       router.push("/");

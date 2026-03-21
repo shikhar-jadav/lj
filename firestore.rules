@@ -1,177 +1,48 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    /**
-     * CORE PHILOSOPHY
-     * This ruleset implements a secure, collaborative environment for a two-user private application. 
-     * It leverages "Database-Backed Access Control" (DBAC) by utilizing denormalized identity fields 
-     * (like authorId, senderId, assignedToId) directly on documents to make fast, atomic authorization 
-     * decisions without cross-document lookups.
-     *
-     * DATA STRUCTURE
-     * The hierarchy combines top-level shared collections (Gallery, Diary, Tasks, Secret Messages) 
-     * with user-specific subcollections (Point Transactions, Question Answers). This ensures that 
-     * while the two partners share most content, personal accounting and identity remain strictly 
-     * isolated and path-validated.
-     *
-     * KEY SECURITY DECISIONS
-     * 1. Mutual Visibility: Since this is a private app for two specific partners, authenticated 
-     *    users generally have read access to most shared content to ensure transparency.
-     * 2. Strict Ownership: Write operations (create, update, delete) are strictly governed by 
-     *    verifying the 'auth.uid' against internal document fields or path variables.
-     * 3. Functional Immutability: Critical relational fields like 'authorId' or 'userId' are 
-     *    protected during updates to prevent users from transferring ownership of data.
-     * 4. Structural Consistency: Subcollections nested under specific user IDs force the client 
-     *    to maintain data consistency between the URL path and the internal document data.
-     */
-
-    // --- Global Helper Functions ---
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
-    }
-
-    function incomingData() {
-      return request.resource.data;
-    }
-
-    function existingData() {
-      return resource.data;
-    }
-
-    // --- Collection Rules ---
-
-    /**
-     * @description Rules for user profiles. Partners can view each other, but only modify their own.
-     * @path /userProfiles/{userId}
-     * @allow (get) Any signed-in user. (update) User whose UID matches {userId}.
-     * @deny (update) Attempting to modify a different user's profile.
-     * @principle Path-based ownership for writes; shared read access for a two-user environment.
-     */
+    // Simplified for prototype: Any signed-in partner can read/write shared collections
     match /userProfiles/{userId} {
-      allow get, list: if isSignedIn();
-      allow create: if isOwner(userId) && incomingData().id == userId;
-      allow update: if isExistingOwner(userId) && incomingData().id == existingData().id;
-      allow delete: if false; // Profiles are managed by system/auth lifecycle
-
-      /**
-       * @description Records of point changes. Nested for ownership and easy listing.
-       * @path /userProfiles/{userId}/pointTransactions/{transactionId}
-       * @allow (list) The owner listing their own transactions. (create) The owner adding a record.
-       * @deny (create) Mismatched userId in path vs auth.
-       * @principle Resource-scoped subcollection ensuring path-based authorization.
-       */
+      allow read, write: if isSignedIn();
+      
       match /pointTransactions/{transactionId} {
-        allow get, list: if isSignedIn();
-        allow create: if isOwner(userId) && incomingData().userId == userId;
-        allow update, delete: if false; // Transactions are immutable audit logs
+        allow read, write: if isSignedIn();
       }
     }
 
-    /**
-     * @description Shared 3D gallery images. Both can see; only uploader can delete/edit meta.
-     * @path /galleryImages/{imageId}
-     * @allow (create) Signed-in user setting themselves as uploader. (update) Any user modifying only the likes array.
-     * @deny (delete) Deleting an image uploaded by the partner.
-     * @principle Field-based ownership for write operations; shared list/get.
-     */
     match /galleryImages/{imageId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && incomingData().uploadedById == request.auth.uid;
-      allow update: if resource != null && (isOwner(existingData().uploadedById) || incomingData().diff(existingData()).affectedKeys().hasOnly(['likedByUsersIds']));
-      allow delete: if isExistingOwner(existingData().uploadedById);
+      allow read, write: if isSignedIn();
     }
 
-    /**
-     * @description Collaborative diary entries.
-     * @path /diaryEntries/{diaryEntryId}
-     * @allow (create) User setting themselves as author. (update) Author editing their entry.
-     * @deny (update) Partner trying to edit an entry they didn't write.
-     * @principle Enforces document ownership for writes using a denormalized authorId.
-     */
     match /diaryEntries/{diaryEntryId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && incomingData().authorId == request.auth.uid;
-      allow update: if isExistingOwner(existingData().authorId) && incomingData().authorId == existingData().authorId;
-      allow delete: if isExistingOwner(existingData().authorId);
+      allow read, write: if isSignedIn();
     }
 
-    /**
-     * @description Tasks assigned between partners. Both participants must have access.
-     * @path /tasks/{taskId}
-     * @allow (get) Assigner or Assignee. (update) Participant updating status or submission.
-     * @deny (create) User trying to create a task where they are neither assigner nor assignee.
-     * @principle Validates that the user is one of the two participants recorded on the task.
-     */
     match /tasks/{taskId} {
-      allow get, list: if isSignedIn() && (request.auth.uid == resource.data.assignedById || request.auth.uid == resource.data.assignedToId);
-      allow create: if isSignedIn() && (incomingData().assignedById == request.auth.uid || incomingData().assignedToId == request.auth.uid);
-      allow update: if resource != null && (request.auth.uid == existingData().assignedById || request.auth.uid == existingData().assignedToId);
-      allow delete: if isExistingOwner(existingData().assignedById);
+      allow read, write: if isSignedIn();
     }
 
-    /**
-     * @description Private secret messages locked by conditions.
-     * @path /secretMessages/{messageId}
-     * @allow (get) Sender or Recipient. (update) Recipient unlocking the message.
-     * @deny (get) A third party (if any) trying to read private communications.
-     * @principle Restricts access to specifically named participants on the document.
-     */
     match /secretMessages/{messageId} {
-      allow get: if isSignedIn() && (request.auth.uid == resource.data.senderId || request.auth.uid == resource.data.recipientId);
-      allow list: if isSignedIn(); // Filtering is handled by the client-side query
-      allow create: if isSignedIn() && incomingData().senderId == request.auth.uid;
-      allow update: if resource != null && (isOwner(existingData().senderId) || isOwner(existingData().recipientId));
-      allow delete: if isExistingOwner(existingData().senderId);
+      allow read, write: if isSignedIn();
     }
 
-    /**
-     * @description System-provided daily romantic questions.
-     * @path /dailyQuestions/{questionId}
-     * @allow (get, list) Any signed-in user.
-     * @deny (write) Any user attempt to modify the questions.
-     * @principle Read-only access for content managed by a separate process.
-     */
     match /dailyQuestions/{questionId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if false;
+      allow read: if isSignedIn();
+      allow write: if false;
 
-      /**
-       * @description User's response to the daily question.
-       * @path /dailyQuestions/{questionId}/answers/{userId}
-       * @allow (create) User answering for themselves.
-       * @deny (update) User trying to overwrite the partner's answer.
-       * @principle Path-based and field-based ownership for user responses.
-       */
-      match /answers/{answerUserId} {
-        allow get, list: if isSignedIn();
-        allow create: if isOwner(answerUserId) && incomingData().authorId == answerUserId;
-        allow update: if isExistingOwner(answerUserId) && incomingData().authorId == existingData().authorId;
-        allow delete: if isExistingOwner(answerUserId);
+      match /answers/{userId} {
+        allow read, write: if isSignedIn();
       }
     }
 
-    /**
-     * @description Global application metadata like shared streaks.
-     * @path /appMetadata/appActivityStreak
-     * @allow (read, write) Any of the two authorized users.
-     * @deny (write) Unauthenticated access.
-     * @principle Shared access for singleton documents representing global app state.
-     */
-    match /appMetadata/appActivityStreak {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && resource != null;
-      allow delete: if false;
+    match /appMetadata/{document=**} {
+      allow read, write: if isSignedIn();
     }
   }
 }

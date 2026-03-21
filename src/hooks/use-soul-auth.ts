@@ -1,7 +1,10 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { auth } from "@/lib/firebase";
+import { signInAnonymously } from "firebase/auth";
 
 const PARTNER_NAMES = ["Snow", "Shikhar"];
 
@@ -13,12 +16,14 @@ export function useSoulAuth() {
   useEffect(() => {
     const stored = localStorage.getItem("soul-user");
     if (stored) {
-      // Check for match case-insensitively
       const matched = PARTNER_NAMES.find(n => n.toLowerCase() === stored.toLowerCase());
       if (matched) {
         setUser(matched);
+        // Ensure Firebase Auth is synced if we have a local session
+        if (!auth.currentUser) {
+          signInAnonymously(auth).catch(console.error);
+        }
       } else {
-        // If names changed and old data exists, clear it
         localStorage.removeItem("soul-user");
         setUser(null);
       }
@@ -26,14 +31,20 @@ export function useSoulAuth() {
     setLoading(false);
   }, []);
 
-  const login = (name: string) => {
+  const login = async (name: string) => {
     const cleanName = name.trim().toLowerCase();
     const matched = PARTNER_NAMES.find(n => n.toLowerCase() === cleanName);
     
     if (matched) {
-      localStorage.setItem("soul-user", matched);
-      setUser(matched);
-      return true;
+      try {
+        await signInAnonymously(auth);
+        localStorage.setItem("soul-user", matched);
+        setUser(matched);
+        return true;
+      } catch (err) {
+        console.error("Firebase Auth Error:", err);
+        return false;
+      }
     }
     return false;
   };
@@ -41,6 +52,7 @@ export function useSoulAuth() {
   const logout = () => {
     localStorage.removeItem("soul-user");
     setUser(null);
+    auth.signOut();
     router.push("/login");
   };
 

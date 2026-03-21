@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -6,23 +7,29 @@ import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Heart } from "lucide-react";
+import { Heart, Loader2 } from "lucide-react";
 import { FloatingHearts } from "@/components/shared/FloatingHearts";
 
 export default function LoginPage() {
   const [name, setName] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState(false);
   const { login } = useSoulAuth();
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Identifies the user by name from the allowed partners list
-    if (login(name)) {
-      router.push("/camera");
+    setIsLoggingIn(true);
+    setError(false);
+    
+    const success = await login(name);
+    
+    if (success) {
+      router.push("/");
     } else {
       setError(true);
-      setTimeout(() => setError(false), 2000);
+      setIsLoggingIn(false);
+      setTimeout(() => setError(false), 3000);
     }
   };
 
@@ -51,6 +58,7 @@ export default function LoginPage() {
               placeholder="Your name"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={isLoggingIn}
               className="bg-background/40 border-primary/20 focus:border-primary text-center h-12 rounded-xl"
             />
           </div>
@@ -70,9 +78,10 @@ export default function LoginPage() {
 
           <Button 
             type="submit" 
+            disabled={isLoggingIn || !name.trim()}
             className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold transition-all transform active:scale-95 shadow-lg shadow-primary/20"
           >
-            Enter Our World
+            {isLoggingIn ? <Loader2 className="animate-spin" /> : "Enter Our World"}
           </Button>
         </form>
       </motion.div>
