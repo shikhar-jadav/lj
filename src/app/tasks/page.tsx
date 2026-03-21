@@ -17,7 +17,8 @@ import {
   Film,
   Music,
   FileIcon,
-  Loader2
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { db, storage } from "@/lib/firebase";
@@ -77,8 +78,37 @@ export default function TasksPage() {
   const handleCreate = () => {
     if (!title || !desc || !user || !partner) return;
     
-    // Only Shikhar can trigger task creation in this specific logic
-    if (user.toLowerCase() !== 'shikhar') return;
+    const isSnow = user.toLowerCase() === 'snow';
+    const isShikhar = user.toLowerCase() === 'shikhar';
+
+    // Snow logic: Requires 1000 points and deducts them
+    if (isSnow) {
+      if (points < 1000) {
+        toast({
+          variant: "destructive",
+          title: "Insufficient Points",
+          description: "You need 1000 points to assign a task.",
+        });
+        return;
+      }
+
+      // Deduct 1000 points for Snow
+      const userRef = doc(db, "userProfiles", user);
+      const transactionsRef = collection(db, "userProfiles", user, "pointTransactions");
+
+      updateDocumentNonBlocking(userRef, { 
+        points: increment(-1000),
+        updatedAt: new Date().toISOString()
+      });
+
+      addDocumentNonBlocking(transactionsRef, {
+        userId: user,
+        amount: -1000,
+        type: "task_assignment_fee",
+        description: `Assigned task: ${title}`,
+        timestamp: serverTimestamp()
+      });
+    }
 
     const taskData = {
       title,
@@ -96,6 +126,11 @@ export default function TasksPage() {
     setView('list');
     setTitle(''); 
     setDesc('');
+    
+    toast({
+      title: "Task Assigned!",
+      description: isSnow ? "1000 points deducted from your balance." : "Task sent successfully!",
+    });
   };
 
   const handleComplete = async () => {
@@ -183,6 +218,8 @@ export default function TasksPage() {
     return <img src={url} alt="Proof" className="w-full rounded-xl mt-4 object-cover shadow-md" />;
   };
 
+  const canCreateTask = user?.toLowerCase() === 'shikhar' || (user?.toLowerCase() === 'snow' && points >= 1000);
+
   return (
     <div className="min-h-screen bg-slate-50 overflow-hidden">
       {view === 'list' && (
@@ -249,7 +286,7 @@ export default function TasksPage() {
               )}
             </div>
 
-            {user?.toLowerCase() === 'shikhar' && (
+            {canCreateTask && (
               <motion.button 
                  whileTap={{ scale: 0.9 }}
                  onClick={() => setView('create')}
@@ -268,7 +305,15 @@ export default function TasksPage() {
             <h2 className="text-xl font-bold text-slate-800">New Task</h2>
             <button onClick={() => setView('list')} className="p-2 bg-slate-100 rounded-full text-slate-500"><X size={20} /></button>
           </div>
-          <div className="p-4 space-y-6 overflow-y-auto pb-24">
+          <div className="p-4 space-y-6 overflow-y-auto pb-24 text-slate-900">
+            {user?.toLowerCase() === 'snow' && (
+              <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex items-start gap-3">
+                <AlertCircle className="text-rose-500 shrink-0 mt-0.5" size={20} />
+                <p className="text-sm text-rose-800 leading-relaxed">
+                  Assigning a task as Snow costs <strong>1000 points</strong>. This will be deducted from your balance once you assign it.
+                </p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Task Title</label>
               <input 
@@ -300,9 +345,16 @@ export default function TasksPage() {
           <div className="p-4 border-t sticky bottom-0 bg-white">
             <button 
               onClick={handleCreate} 
-              className="w-full bg-rose-500 text-white py-4 rounded-xl font-bold active:scale-95 transition-transform"
+              className="w-full bg-rose-500 text-white py-4 rounded-xl font-bold active:scale-95 transition-transform flex items-center justify-center gap-2"
             >
-              Assign Task
+              {user?.toLowerCase() === 'snow' ? (
+                <>
+                  <Coins size={20} />
+                  Assign (-1000 pts)
+                </>
+              ) : (
+                'Assign Task'
+              )}
             </button>
           </div>
         </div>
