@@ -1,0 +1,557 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user profile for one of the two app users. Stores personal information, profile picture, and current points.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the user (e.g., 'Alice' or 'Bob'). There are only two users in the app."
+        },
+        "profileImageUrl": {
+          "type": "string",
+          "description": "URL to the user's profile image stored in Firebase Storage.",
+          "format": "uri"
+        },
+        "points": {
+          "type": "number",
+          "description": "Current points balance for the user."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "points",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "GalleryImage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GalleryImage",
+      "type": "object",
+      "description": "Represents an image displayed in the 3D shared gallery, including its metadata.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GalleryImage entity."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL to the image stored in Firebase Storage.",
+          "format": "uri"
+        },
+        "caption": {
+          "type": "string",
+          "description": "Optional caption for the image."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp when the image was uploaded.",
+          "format": "date-time"
+        },
+        "uploadedById": {
+          "type": "string",
+          "description": "Reference to the UserProfile who uploaded this image. (Relationship: UserProfile 1:N GalleryImage)"
+        },
+        "likedByUsersIds": {
+          "type": "array",
+          "description": "References to UserProfiles who liked this image. (Relationship: UserProfile N:N GalleryImage)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "imageUrl",
+        "timestamp",
+        "uploadedById"
+      ]
+    },
+    "DiaryEntry": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DiaryEntry",
+      "type": "object",
+      "description": "Represents a single entry in the shared collaborative diary.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DiaryEntry entity."
+        },
+        "authorId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who authored this diary entry. (Relationship: UserProfile 1:N DiaryEntry)"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp when the diary entry was created.",
+          "format": "date-time"
+        },
+        "text": {
+          "type": "string",
+          "description": "The content of the diary entry."
+        },
+        "moodEmoji": {
+          "type": "string",
+          "description": "An emoji representing the mood of the diary entry."
+        }
+      },
+      "required": [
+        "id",
+        "authorId",
+        "timestamp",
+        "text"
+      ]
+    },
+    "Task": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Task",
+      "type": "object",
+      "description": "Represents a task assigned by one partner to another within the app.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Task entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "A brief title for the task."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the task requirements."
+        },
+        "assignedById": {
+          "type": "string",
+          "description": "Reference to the UserProfile who assigned this task. (Relationship: UserProfile 1:N Task)"
+        },
+        "assignedToId": {
+          "type": "string",
+          "description": "Reference to the UserProfile to whom this task is assigned. (Relationship: UserProfile 1:N Task)"
+        },
+        "rewardPoints": {
+          "type": "number",
+          "description": "Points awarded upon successful completion of the task."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the task (e.g., 'pending', 'submitted', 'completed', 'cancelled')."
+        },
+        "submissionText": {
+          "type": "string",
+          "description": "Optional text submission from the assignee for the task."
+        },
+        "submissionImageUrl": {
+          "type": "string",
+          "description": "Optional URL to an image submission from the assignee for the task, stored in Firebase Storage.",
+          "format": "uri"
+        },
+        "assignedAt": {
+          "type": "string",
+          "description": "Timestamp when the task was assigned.",
+          "format": "date-time"
+        },
+        "submittedAt": {
+          "type": "string",
+          "description": "Timestamp when the task was submitted by the assignee.",
+          "format": "date-time"
+        },
+        "completedAt": {
+          "type": "string",
+          "description": "Timestamp when the task was marked as completed.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "assignedById",
+        "assignedToId",
+        "rewardPoints",
+        "status",
+        "assignedAt"
+      ]
+    },
+    "PointTransaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PointTransaction",
+      "type": "object",
+      "description": "Records a change in a user's point balance, detailing the amount, type, and reason.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the PointTransaction entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the UserProfile whose points balance was affected by this transaction. (Relationship: UserProfile 1:N PointTransaction)"
+        },
+        "amount": {
+          "type": "number",
+          "description": "The number of points added (positive) or deducted (negative) in this transaction."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of the transaction (e.g., 'task_reward', 'task_submission', 'manual_adjustment', 'redeem')."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp when the transaction occurred.",
+          "format": "date-time"
+        },
+        "relatedTaskId": {
+          "type": "string",
+          "description": "Optional reference to the Task entity that this transaction is associated with. (Relationship: Task 1:N PointTransaction)"
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description or reason for the transaction."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "amount",
+        "type",
+        "timestamp",
+        "description"
+      ]
+    },
+    "SecretMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SecretMessage",
+      "type": "object",
+      "description": "Represents a private message from one partner to another, locked by a condition.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the SecretMessage entity."
+        },
+        "senderId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who sent this secret message. (Relationship: UserProfile 1:N SecretMessage)"
+        },
+        "recipientId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who is the intended recipient of this secret message. (Relationship: UserProfile 1:N SecretMessage)"
+        },
+        "content": {
+          "type": "string",
+          "description": "The hidden text content of the secret message."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the secret message was created.",
+          "format": "date-time"
+        },
+        "unlockConditionType": {
+          "type": "string",
+          "description": "The type of condition required to unlock the message (e.g., 'date', 'password', 'task_completion')."
+        },
+        "unlockConditionValue": {
+          "type": "string",
+          "description": "The specific value for the unlock condition (e.g., a date string, a password, a Task ID)."
+        },
+        "isUnlocked": {
+          "type": "boolean",
+          "description": "Indicates whether the message has been unlocked by the recipient."
+        },
+        "unlockedAt": {
+          "type": "string",
+          "description": "Optional timestamp when the message was unlocked.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "senderId",
+        "recipientId",
+        "content",
+        "createdAt",
+        "unlockConditionType",
+        "unlockConditionValue",
+        "isUnlocked"
+      ]
+    },
+    "DailyQuestion": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DailyQuestion",
+      "type": "object",
+      "description": "Represents a romantic question posed to the users for a specific day.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DailyQuestion entity."
+        },
+        "questionText": {
+          "type": "string",
+          "description": "The romantic question posed for the day."
+        },
+        "displayDate": {
+          "type": "string",
+          "description": "The specific date (YYYY-MM-DD) for which this question is active.",
+          "format": "date"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the question was added to the system.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "questionText",
+        "displayDate",
+        "createdAt"
+      ]
+    },
+    "DailyQuestionAnswer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DailyQuestionAnswer",
+      "type": "object",
+      "description": "Represents a user's answer to a specific daily question.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DailyQuestionAnswer entity."
+        },
+        "questionId": {
+          "type": "string",
+          "description": "Reference to the DailyQuestion this answer belongs to. (Relationship: DailyQuestion 1:N DailyQuestionAnswer)"
+        },
+        "authorId": {
+          "type": "string",
+          "description": "Reference to the UserProfile who provided this answer. (Relationship: UserProfile 1:N DailyQuestionAnswer)"
+        },
+        "answerText": {
+          "type": "string",
+          "description": "The user's answer to the daily question."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp when the answer was submitted.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "questionId",
+        "authorId",
+        "answerText",
+        "timestamp"
+      ]
+    },
+    "AppActivityStreak": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AppActivityStreak",
+      "type": "object",
+      "description": "Tracks the shared daily activity streak between the two users of the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AppActivityStreak entity. Expected to be a singleton, e.g., 'app_streak'."
+        },
+        "currentStreak": {
+          "type": "number",
+          "description": "The number of consecutive days with activity recorded from at least one user."
+        },
+        "lastActivityDate": {
+          "type": "string",
+          "description": "The last date (YYYY-MM-DD) on which activity was recorded, contributing to the streak.",
+          "format": "date"
+        },
+        "longestStreak": {
+          "type": "number",
+          "description": "The highest streak achieved so far across all time."
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the streak was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "currentStreak",
+        "lastActivityDate",
+        "longestStreak",
+        "updatedAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/userProfiles/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores individual user profiles. Access is path-based: `request.auth.uid` must match `{userId}` for write access. Both users can read both profiles. Includes denormalized 'id' field matching the document ID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, typically `request.auth.uid`."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/userProfiles/{userId}/pointTransactions/{transactionId}",
+        "definition": {
+          "entityName": "PointTransaction",
+          "schema": {
+            "$ref": "#/backend/entities/PointTransaction"
+          },
+          "description": "Records point transactions for a specific user. Nested under `userProfiles` to ensure path-based ownership. `userId` in the path must match `request.auth.uid` for write access. Both users can read for transparency.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user whose points balance was affected."
+            },
+            {
+              "name": "transactionId",
+              "description": "The unique identifier for the point transaction."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/galleryImages/{imageId}",
+        "definition": {
+          "entityName": "GalleryImage",
+          "schema": {
+            "$ref": "#/backend/entities/GalleryImage"
+          },
+          "description": "A top-level collection for shared gallery images. Includes denormalized 'uploadedById' and 'likedByUsersIds' fields within each document for authorization independence and efficient rule evaluation. Both users can read all images. Only `uploadedById` can modify the image (except for `likedByUsersIds` which both can update).",
+          "params": [
+            {
+              "name": "imageId",
+              "description": "The unique identifier for the gallery image."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/diaryEntries/{diaryEntryId}",
+        "definition": {
+          "entityName": "DiaryEntry",
+          "schema": {
+            "$ref": "#/backend/entities/DiaryEntry"
+          },
+          "description": "A top-level collection for shared diary entries. Includes a denormalized 'authorId' field for authorization independence. Both users can read all entries. Only `authorId` can write/update their own entries.",
+          "params": [
+            {
+              "name": "diaryEntryId",
+              "description": "The unique identifier for the diary entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/tasks/{taskId}",
+        "definition": {
+          "entityName": "Task",
+          "schema": {
+            "$ref": "#/backend/entities/Task"
+          },
+          "description": "A top-level collection for tasks assigned between partners. Includes denormalized 'assignedById' and 'assignedToId' fields within each document for authorization independence. Both users can read if they are the assigner or assignee. Write access is conditional based on task status and role.",
+          "params": [
+            {
+              "name": "taskId",
+              "description": "The unique identifier for the task."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/secretMessages/{messageId}",
+        "definition": {
+          "entityName": "SecretMessage",
+          "schema": {
+            "$ref": "#/backend/entities/SecretMessage"
+          },
+          "description": "A top-level collection for private messages. Includes denormalized 'senderId' and 'recipientId' fields for authorization independence. Read access for sender/recipient. Sender can write content, recipient can update unlock status.",
+          "params": [
+            {
+              "name": "messageId",
+              "description": "The unique identifier for the secret message."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/dailyQuestions/{questionId}",
+        "definition": {
+          "entityName": "DailyQuestion",
+          "schema": {
+            "$ref": "#/backend/entities/DailyQuestion"
+          },
+          "description": "A top-level collection for daily romantic questions. Assumed read-only for authenticated users and managed by a system process. No specific user-based authorization fields needed on document.",
+          "params": [
+            {
+              "name": "questionId",
+              "description": "The unique identifier for the daily question."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/dailyQuestions/{questionId}/answers/{userId}",
+        "definition": {
+          "entityName": "DailyQuestionAnswer",
+          "schema": {
+            "$ref": "#/backend/entities/DailyQuestionAnswer"
+          },
+          "description": "User's answer to a specific daily question. Nested under `dailyQuestions` and then by `userId` to ensure path-based ownership for writes (`request.auth.uid == userId`). Both users can read answers to a given question for a shared experience. `authorId` in document should match `userId` in path.",
+          "params": [
+            {
+              "name": "questionId",
+              "description": "The unique identifier of the daily question this answer belongs to."
+            },
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user who provided this answer, matching `request.auth.uid`."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/appMetadata/appActivityStreak",
+        "definition": {
+          "entityName": "AppActivityStreak",
+          "schema": {
+            "$ref": "#/backend/entities/AppActivityStreak"
+          },
+          "description": "A singleton document tracking the shared activity streak for the application. Placed under a generic `appMetadata` collection. Both users have read/write access to this single document. The document ID will be a fixed value like 'appActivityStreak'.",
+          "params": []
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to adhere strictly to the core design principles of Authorization Independence, Clarity of Intent, DBAC (Database-Backed Access Control), QAPs (Queries Are Not Filters), and Invariants. This ensures a secure, scalable, and easily debuggable system for a two-user private romantic app.Authorization Independence is achieved primarily through pervasive denormalization and ensuring that all necessary authorization context is available directly within each document. For instance, `GalleryImage` documents include `uploadedById` and `likedByUsersIds` arrays, allowing rules to check permissions without needing `get()` operations on parent documents or user profiles. Similarly, `Task` documents store both `assignedById` and `assignedToId` directly, making authorization decisions atomic and clear. The `SecretMessage` entity also follows this by storing `senderId` and `recipientId` on the message document itself. For user-specific data like `PointTransaction` and `DailyQuestionAnswer`, these are nested directly under the respective `userProfiles/{userId}` path or `dailyQuestions/{questionId}/answers/{userId}` where the `userId` in the path serves as the authorization context.This approach eliminates costly and non-atomic `get()` calls in security rules, making rules simpler to write, reason about, and debug, while also enabling batched writes and transactions across related data without rule conflicts.QAPs (Queries Are Not Filters) are supported by ensuring that collections have a homogeneous security posture. Collections like `/galleryImages`, `/diaryEntries`, and `/secretMessages` are top-level because all documents within them share the same base read/write permissions for the two authenticated users, with specific write permissions governed by fields denormalized within the document (e.g., `uploadedById`, `authorId`, `senderId`, `recipientId`). For user-specific data, such as `pointTransactions` or `dailyQuestionAnswers`, they are organized as subcollections under `/userProfiles/{userId}` or `/dailyQuestions/{questionId}/answers/{userId}`. This structure means that a `list` query against such a path (`/userProfiles/{request.auth.uid}/pointTransactions`) will always be secure because the `userId` in the path matches the `request.auth.uid`, making the query implicitly pre-filtered by the rules. The `AppActivityStreak` is a singleton under `/appMetadata/appActivityStreak`, where both users have full access to a single document, ensuring consistent security without complex filtering.This design explicitly models state with fields like `status` in `Task` and uses consistent naming conventions (e.g., `authorId`, `ownerId` implied by path, `createdAt`, `updatedAt`) to enhance clarity and predictability for developers and security rule writers. All authorization is based on `request.auth.uid` and database content, fully adhering to the DBAC principle."
+  }
+}
