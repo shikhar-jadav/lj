@@ -1,93 +1,56 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { BottomNav } from "@/components/shared/BottomNav";
-import { Heart, Star, TrendingUp, History, Trophy } from "lucide-react";
-import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, doc, orderBy } from "firebase/firestore";
+import { Navigation } from "@/components/shared/Navigation";
+import { ChevronLeft, Coins, Trophy, Plus, ArrowRightLeft } from "lucide-react";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
+import { useRouter } from "next/navigation";
+import { db } from "@/lib/firebase";
+import { doc, onSnapshot, collection, query, where, orderBy } from "firebase/firestore";
 
 export default function PointsPage() {
-  const { user, partner } = useSoulAuth();
-  const [balance, setBalance] = useState(0);
-  const [partnerBalance, setPartnerBalance] = useState(0);
-  const [history, setHistory] = useState<any[]>([]);
+  const { user } = useSoulAuth();
+  const router = useRouter();
+  const [points, setPoints] = useState(0);
+  const [transactions, setTransactions] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) return;
-    const unsubUser = onSnapshot(doc(db, "users", user), (doc) => setBalance(doc.data()?.points || 0));
-    const unsubPartner = onSnapshot(doc(db, "users", partner), (doc) => setPartnerBalance(doc.data()?.points || 0));
-    
-    const hQuery = query(collection(db, "transactions"), where("user", "in", [user, partner]), orderBy("timestamp", "desc"));
-    const unsubHistory = onSnapshot(hQuery, (snapshot) => {
-      setHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    const unsubPoints = onSnapshot(doc(db, "userProfiles", user), (doc) => {
+      setPoints(doc.data()?.points || 0);
     });
 
-    return () => {
-      unsubUser();
-      unsubPartner();
-      unsubHistory();
-    };
-  }, [user, partner]);
+    // In a real app we'd have a subcollection of transactions
+    // For now we'll mock or just show points as we don't have a transaction collection defined in backend.json yet
+    return () => unsubPoints();
+  }, [user]);
 
   return (
-    <div className="min-h-screen pb-32 p-6 bg-background space-y-8">
-      <div className="pt-4 text-center space-y-2">
-        <h1 className="text-4xl font-headline text-primary font-bold">Love Bank</h1>
-        <p className="text-muted-foreground italic">Our investment in each other</p>
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="bg-white p-4 sticky top-0 border-b border-rose-100 flex items-center gap-3 z-10">
+        <button onClick={() => router.back()} className="p-2 -ml-2 hover:bg-slate-100 rounded-full">
+          <ChevronLeft size={24} />
+        </button>
+        <span className="font-bold text-lg">Points History</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <motion.div 
-          whileHover={{ scale: 1.02 }}
-          className="glass p-6 rounded-3xl text-center space-y-2 border-primary/20 rose-glow"
-        >
-          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
-            <Star className="text-primary w-5 h-5 fill-primary" />
+      <div className="p-4 flex-1 overflow-y-auto">
+        <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-3xl p-8 text-white shadow-xl shadow-orange-200 mb-8 relative overflow-hidden">
+          <div className="relative z-10">
+            <p className="text-yellow-100 font-medium mb-1 text-sm tracking-wide uppercase">Current Balance</p>
+            <h1 className="text-6xl font-bold tracking-tight">{points}</h1>
+            <span className="text-lg opacity-80 font-medium">Total Points</span>
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">My Points</span>
-          <p className="text-4xl font-headline text-white font-bold">{balance}</p>
-        </motion.div>
-
-        <motion.div 
-          whileHover={{ scale: 1.02 }}
-          className="glass p-6 rounded-3xl text-center space-y-2 border-accent/20 accent-glow"
-        >
-          <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-2">
-            <Star className="text-accent w-5 h-5 fill-accent" />
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{partner}'s Points</span>
-          <p className="text-4xl font-headline text-white font-bold">{partnerBalance}</p>
-        </motion.div>
-      </div>
-
-      <div className="glass p-6 rounded-3xl space-y-4">
-        <div className="flex items-center gap-2 mb-2">
-          <History className="w-5 h-5 text-primary" />
-          <h3 className="text-sm font-bold uppercase tracking-widest">Love Ledger</h3>
+          <Coins className="absolute -right-6 -bottom-6 w-48 h-48 opacity-20 rotate-12" />
         </div>
-        <div className="space-y-4">
-          {history.length > 0 ? history.map((tx) => (
-            <div key={tx.id} className="flex justify-between items-center border-b border-white/5 pb-3 last:border-0 last:pb-0">
-               <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${tx.user === user ? 'bg-primary/20' : 'bg-accent/20'}`}>
-                    <Trophy className={`w-4 h-4 ${tx.user === user ? 'text-primary' : 'text-accent'}`} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{tx.user === user ? 'I' : partner} earned a reward</p>
-                    <p className="text-[10px] text-muted-foreground uppercase">{tx.timestamp?.toDate().toLocaleDateString()}</p>
-                  </div>
-               </div>
-               <span className={`font-bold ${tx.user === user ? 'text-primary' : 'text-accent'}`}>+{tx.amount}</span>
-            </div>
-          )) : (
-            <p className="text-center text-muted-foreground italic py-4">No transactions yet. Challenge each other!</p>
-          )}
+
+        <h3 className="font-bold text-slate-800 mb-4 px-1">Recent Activity</h3>
+        <div className="space-y-3 pb-8 text-center text-slate-400 py-12 bg-white rounded-2xl border border-dashed border-slate-200">
+          No history yet. Start earning points!
         </div>
       </div>
-
-      <BottomNav />
     </div>
   );
 }

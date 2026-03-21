@@ -3,8 +3,6 @@
 
 import { useRef, useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Camera, RefreshCw, Check, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { storage, db } from "@/lib/firebase";
@@ -14,134 +12,127 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 export default function CameraPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [captured, setCaptured] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
   const router = useRouter();
   const { user } = useSoulAuth();
 
   useEffect(() => {
     startCamera();
-    return () => stopCamera();
+    return () => {
+      if (stream) stream.getTracks().forEach(track => track.stop());
+    };
   }, []);
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user" } 
+      });
+      setStream(mediaStream);
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+        videoRef.current.srcObject = mediaStream;
       }
     } catch (err) {
-      console.error("Error accessing camera:", err);
+      setError("Please allow camera access to continue 📸");
     }
   };
 
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-    }
-  };
-
-  const takePhoto = () => {
+  const captureImage = () => {
     if (videoRef.current && canvasRef.current) {
-      const context = canvasRef.current.getContext("2d");
-      if (context) {
-        canvasRef.current.width = videoRef.current.videoWidth;
-        canvasRef.current.height = videoRef.current.videoHeight;
-        context.drawImage(videoRef.current, 0, 0);
-        const dataUrl = canvasRef.current.toDataURL("image/jpeg");
-        setCapturedImage(dataUrl);
-        stopCamera();
-      }
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context?.translate(canvas.width, 0);
+      context?.scale(-1, 1);
+      context?.drawImage(video, 0, 0);
+      setCaptured(canvas.toDataURL('image/jpeg'));
     }
   };
 
-  const retake = () => {
-    setCapturedImage(null);
-    startCamera();
-  };
-
-  const saveProfile = async () => {
-    if (!capturedImage || !user) return;
+  const handleSave = async () => {
+    if (!captured || !user) return;
     setLoading(true);
     try {
       const storageRef = ref(storage, `profiles/${user}.jpg`);
-      await uploadString(storageRef, capturedImage, 'data_url');
-      const downloadURL = await getDownloadURL(storageRef);
+      await uploadString(storageRef, captured, 'data_url');
+      const url = await getDownloadURL(storageRef);
       
       await setDoc(doc(db, "userProfiles", user), {
         id: user,
         name: user,
-        profileImageUrl: downloadURL,
-        points: 0,
-        createdAt: new Date().toISOString(),
+        profileImageUrl: url,
         updatedAt: serverTimestamp()
       }, { merge: true });
 
       router.push("/");
     } catch (err) {
-      console.error("Save error:", err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-between p-6 bg-background">
-      <div className="mt-8 text-center space-y-2">
-        <h2 className="text-3xl font-headline text-primary">A Smile for Me</h2>
-        <p className="text-muted-foreground">Capture your profile picture</p>
-      </div>
-
-      <div className="relative w-full max-w-sm aspect-square rounded-full overflow-hidden border-4 border-primary/30 shadow-2xl rose-glow">
-        {!capturedImage ? (
-          <video 
-            ref={videoRef} 
-            autoPlay 
-            playsInline 
-            className="w-full h-full object-cover scale-x-[-1]"
-          />
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      className="min-h-screen flex flex-col p-4 bg-black"
+    >
+      <div className="flex-1 relative rounded-3xl overflow-hidden bg-gray-900 border border-white/20 shadow-2xl mb-6">
+        {captured ? (
+          <img src={captured} alt="Captured" className="w-full h-full object-cover" />
         ) : (
-          <img src={capturedImage} className="w-full h-full object-cover" alt="Captured" />
+          <>
+            <canvas ref={canvasRef} className="hidden" />
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              className="w-full h-full object-cover transform -scale-x-100" 
+            />
+            {error && (
+              <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-white/80">
+                <p>{error}</p>
+              </div>
+            )}
+          </>
         )}
-        <canvas ref={canvasRef} className="hidden" />
       </div>
 
-      <div className="mb-12 w-full max-w-xs space-y-4">
-        {!capturedImage ? (
-          <Button 
-            onClick={takePhoto}
-            className="w-full h-16 rounded-full bg-primary hover:bg-primary/90 text-white shadow-xl"
-          >
-            <Camera className="mr-2" /> Capture
-          </Button>
+      <div className="pb-8 px-4 flex flex-col gap-4">
+        {!captured ? (
+          <div className="flex justify-center">
+             <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={captureImage}
+              className="w-20 h-20 bg-white rounded-full border-4 border-rose-200 flex items-center justify-center shadow-lg"
+            >
+              <div className="w-16 h-16 bg-rose-500 rounded-full border-2 border-white" />
+            </motion.button>
+          </div>
         ) : (
           <div className="flex gap-4">
-            <Button 
-              onClick={retake}
-              variant="outline"
-              className="flex-1 h-14 rounded-full border-primary/20"
+            <button 
+              onClick={() => setCaptured(null)}
+              className="flex-1 px-6 py-4 rounded-xl font-medium bg-white text-rose-500 border border-rose-100 hover:bg-rose-50 active:scale-95"
             >
-              <RefreshCw className="mr-2" /> Retake
-            </Button>
-            <Button 
-              onClick={saveProfile}
+              Retake
+            </button>
+            <button 
+              onClick={handleSave}
               disabled={loading}
-              className="flex-1 h-14 rounded-full bg-accent hover:bg-accent/90 text-accent-foreground shadow-xl"
+              className="flex-1 px-6 py-4 rounded-xl font-medium bg-gradient-to-r from-rose-400 to-pink-500 text-white active:scale-95 disabled:opacity-50"
             >
-              {loading ? "Saving..." : <><Check className="mr-2" /> Save</>}
-            </Button>
+              {loading ? "Saving..." : "Continue"}
+            </button>
           </div>
         )}
-        
-        <Button 
-          variant="ghost" 
-          onClick={() => router.push("/")}
-          className="w-full text-muted-foreground"
-        >
-          Skip for now <ArrowRight className="ml-2 w-4 h-4" />
-        </Button>
       </div>
-    </div>
+    </motion.div>
   );
 }

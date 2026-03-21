@@ -5,86 +5,79 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Heart, Loader2 } from "lucide-react";
-import { FloatingHearts } from "@/components/shared/FloatingHearts";
+import { Heart } from "lucide-react";
 
 export default function LoginPage() {
   const [name, setName] = useState("");
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [error, setError] = useState(false);
   const { login } = useSoulAuth();
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoggingIn(true);
-    setError(false);
-    
     const success = await login(name);
     
     if (success) {
-      router.push("/");
+      router.push("/camera");
     } else {
       setError(true);
-      setIsLoggingIn(false);
-      setTimeout(() => setError(false), 3000);
+      setTimeout(() => setError(false), 2000);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6">
-      <FloatingHearts />
-      
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      className="min-h-screen flex items-center justify-center p-4 md:p-6 bg-gradient-to-br from-rose-100 via-pink-100 to-red-50"
+    >
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass p-8 rounded-3xl w-full max-w-sm z-10 space-y-8 relative overflow-hidden"
+        className="bg-white/60 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-sm border border-white/60"
+        initial={{ y: 20 }}
+        animate={{ y: 0 }}
       >
-        <div className="absolute top-0 right-0 p-4 opacity-10">
-          <Heart className="w-20 h-20 text-primary" fill="currentColor" />
-        </div>
-
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-headline text-primary font-bold">SoulCanvas</h1>
-          <p className="text-muted-foreground italic">Our private digital sanctuary</p>
+        <div className="text-center mb-8">
+          <motion.div 
+            animate={{ scale: [1, 1.1, 1] }} 
+            transition={{ repeat: Infinity, duration: 2 }}
+            className="inline-block text-6xl mb-4"
+          >
+            ❤️
+          </motion.div>
+          <h1 className="text-2xl font-bold text-rose-800 font-serif">Welcome Love</h1>
+          <p className="text-rose-600/70 text-sm mt-2">Enter our secret name</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-1">
-            <Input
-              type="text"
-              placeholder="Your name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={isLoggingIn}
-              className="bg-background/40 border-primary/20 focus:border-primary text-center h-12 rounded-xl"
-            />
-          </div>
-
-          <AnimatePresence>
-            {error && (
-              <motion.p
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="text-destructive text-sm text-center"
-              >
-                That's not one of us, darling.
-              </motion.p>
-            )}
-          </AnimatePresence>
-
-          <Button 
-            type="submit" 
-            disabled={isLoggingIn || !name.trim()}
-            className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold transition-all transform active:scale-95 shadow-lg shadow-primary/20"
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Hint: s..."
+            className="w-full px-6 py-4 rounded-xl bg-white border-2 border-rose-100 focus:border-rose-400 outline-none text-rose-900 placeholder-rose-300 transition-all text-center text-lg min-h-[56px]"
+          />
+          
+          <button 
+            type="submit"
+            className="w-full px-6 py-4 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 shadow-lg bg-gradient-to-r from-rose-400 to-pink-500 text-white hover:shadow-pink-300/50 active:scale-95"
           >
-            {isLoggingIn ? <Loader2 className="animate-spin" /> : "Enter Our World"}
-          </Button>
+            Unlock My Heart
+          </button>
         </form>
+
+        <AnimatePresence>
+          {error && (
+            <motion.p
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: [0, -10, 10, -5, 5, 0] }}
+              exit={{ opacity: 0 }}
+              className="text-red-500 text-center mt-4 font-medium"
+            >
+              Wrong name 😢 try again
+            </motion.p>
+          )}
+        </AnimatePresence>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
