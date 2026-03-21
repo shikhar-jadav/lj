@@ -113,7 +113,9 @@ export default function TasksPage() {
 
       const taskRef = doc(db, "tasks", selectedTask.id);
       const userRef = doc(db, "userProfiles", user);
+      const transactionsRef = collection(db, "userProfiles", user, "pointTransactions");
 
+      // 1. Update Task Status
       updateDocumentNonBlocking(taskRef, {
         status: "completed",
         submissionText: proof,
@@ -121,9 +123,25 @@ export default function TasksPage() {
         completedAt: new Date().toISOString()
       });
 
+      // 2. Increment User Points
       updateDocumentNonBlocking(userRef, { 
         points: increment(selectedTask.rewardPoints),
         updatedAt: new Date().toISOString()
+      });
+
+      // 3. Create Transaction Record for History
+      addDocumentNonBlocking(transactionsRef, {
+        userId: user,
+        amount: selectedTask.rewardPoints,
+        type: "task_reward",
+        description: `Completed: ${selectedTask.title}`,
+        relatedTaskId: selectedTask.id,
+        timestamp: serverTimestamp()
+      });
+
+      toast({
+        title: "Task Completed!",
+        description: `You earned ${selectedTask.rewardPoints} points.`,
       });
 
       setView('list');
@@ -155,7 +173,6 @@ export default function TasksPage() {
   const renderMedia = (url: string) => {
     if (!url) return null;
     
-    // Simple heuristic for media type based on common extensions in Firebase Storage URLs
     const lowerUrl = url.toLowerCase();
     if (lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('.ogg')) {
       return <video src={url} controls className="w-full rounded-xl mt-4 bg-black aspect-video" />;
