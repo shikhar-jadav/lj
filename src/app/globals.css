@@ -29,11 +29,12 @@
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-white/10;
   }
   body {
-    @apply bg-background text-foreground font-body overflow-x-hidden;
+    @apply bg-background text-foreground font-body overflow-x-hidden min-h-screen;
     background: radial-gradient(circle at center, #2d1b24 0%, #1d161b 100%);
+    background-attachment: fixed;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-headline;

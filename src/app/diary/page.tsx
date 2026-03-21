@@ -1,9 +1,9 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
+import { FloatingHearts } from "@/components/shared/FloatingHearts";
 import { BookHeart, PenLine, Save, ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { db } from "@/lib/firebase";
@@ -95,7 +95,7 @@ export default function DiaryPage() {
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="bg-rose-500 text-white px-3 py-1.5 rounded-lg text-sm shadow-md flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                className="bg-rose-500 text-white px-3 py-1.5 rounded-xl text-sm shadow-lg flex items-center gap-2 active:scale-95 disabled:opacity-50"
               >
                 {isSaving ? "Saving..." : "Sign & Save"} <Save size={14} />
               </button>
@@ -120,12 +120,18 @@ export default function DiaryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-16 overflow-hidden">
+    <div className="min-h-screen bg-transparent pt-20 relative overflow-hidden">
+      <FloatingHearts />
       <Navigation />
-      <div className="flex flex-col items-center justify-center min-h-[85vh] w-full px-4">
-        <h2 className="text-2xl font-serif text-rose-800 mb-8 flex items-center gap-2">
-          Our Diary <BookHeart className="w-6 h-6" />
-        </h2>
+      <div className="flex flex-col items-center justify-center min-h-[85vh] w-full px-6 relative z-10">
+        <motion.h2 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-4xl font-headline text-white mb-2 flex items-center gap-3 font-bold"
+        >
+          Our Diary <BookHeart className="w-8 h-8 text-primary" />
+        </motion.h2>
+        <p className="text-rose-300/40 text-[10px] font-bold uppercase tracking-[0.3em] mb-12">Whispers of our journey</p>
 
         <div 
           className="relative flex justify-center items-center transition-transform duration-300"
@@ -135,28 +141,28 @@ export default function DiaryPage() {
             perspective: '2000px' 
           }}
         >
-          <div style={{ transform: `scale(${Math.max(0.5, Math.min(1, bookScale * 1.8))})` }} className="relative w-[700px] h-[500px]">
+          <div style={{ transform: `scale(${Math.max(0.4, Math.min(1.2, bookScale * 1.5))})` }} className="relative w-[700px] h-[500px]">
             <button 
               onClick={() => setCurrentSheetIndex(p => Math.max(0, p - 1))} 
-              className="absolute -left-12 top-1/2 -translate-y-1/2 z-50 p-3 bg-white/80 rounded-full shadow-lg text-rose-600 disabled:opacity-30"
+              className="absolute -left-16 top-1/2 -translate-y-1/2 z-50 p-4 glass rounded-2xl shadow-2xl text-rose-400 disabled:opacity-10 transition-all hover:text-white"
               disabled={currentSheetIndex === 0}
             >
-              <ChevronLeft />
+              <ChevronLeft size={32} />
             </button>
             
             <button 
               onClick={() => setCurrentSheetIndex(p => Math.min(sheets.length, p + 1))} 
-              className="absolute -right-12 top-1/2 -translate-y-1/2 z-50 p-3 bg-white/80 rounded-full shadow-lg text-rose-600 disabled:opacity-30"
+              className="absolute -right-16 top-1/2 -translate-y-1/2 z-50 p-4 glass rounded-2xl shadow-2xl text-rose-400 disabled:opacity-10 transition-all hover:text-white"
               disabled={currentSheetIndex >= sheets.length}
             >
-              <ChevronRight />
+              <ChevronRight size={32} />
             </button>
 
-            <div className="relative w-full h-full flex justify-center">
-               <div className="absolute inset-0 bg-amber-900 rounded-lg shadow-2xl transform scale-x-[1.02] scale-y-[1.03]" />
-               <div className="absolute inset-0 bg-[#fdfbf7] rounded-lg border-2 border-[#e3dccb] flex overflow-hidden">
-                  <div className="w-1/2 h-full border-r border-black/5 bg-gradient-to-r from-transparent to-black/5" />
-                  <div className="w-1/2 h-full border-l border-black/5 bg-gradient-to-l from-transparent to-black/5" />
+            <div className="relative w-full h-full flex justify-center group">
+               <div className="absolute inset-0 bg-rose-950 rounded-2xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] transform scale-x-[1.03] scale-y-[1.04] border border-white/5" />
+               <div className="absolute inset-0 bg-[#fdfbf7] rounded-xl border-2 border-[#e3dccb] flex overflow-hidden shadow-inner">
+                  <div className="w-1/2 h-full border-r border-black/10 bg-gradient-to-r from-transparent to-black/5" />
+                  <div className="w-1/2 h-full border-l border-black/10 bg-gradient-to-l from-transparent to-black/5" />
                </div>
 
                <div className="relative w-full h-full" style={{ perspective: '2000px' }}>
@@ -169,7 +175,7 @@ export default function DiaryPage() {
                         key={index}
                         initial={false}
                         animate={{ rotateY: isFlipped ? -180 : 0 }}
-                        transition={{ duration: 0.8 }}
+                        transition={{ duration: 0.8, ease: "easeInOut" }}
                         style={{ 
                           transformOrigin: 'left center',
                           transformStyle: 'preserve-3d',
@@ -179,25 +185,25 @@ export default function DiaryPage() {
                         }}
                       >
                         <div 
-                          className="absolute inset-0 bg-[#fffbf0] rounded-r-lg shadow-md p-8 overflow-hidden border-l border-rose-100"
+                          className="absolute inset-0 bg-[#fffbf0] rounded-r-xl shadow-2xl p-10 overflow-hidden border-l border-black/5"
                           style={{ backfaceVisibility: 'hidden' }}
                         >
                           {renderPage(sheet.front)}
-                          <div className="absolute bottom-4 right-6 text-xs text-rose-300">Page {index * 2 + 1}</div>
+                          <div className="absolute bottom-6 right-8 text-[10px] font-bold text-rose-200 uppercase tracking-widest">Page {index * 2 + 1}</div>
                         </div>
 
                         <div 
-                          className="absolute inset-0 bg-[#fffbf0] rounded-l-lg shadow-md p-8 overflow-hidden border-r border-rose-100"
+                          className="absolute inset-0 bg-[#fffbf0] rounded-l-xl shadow-2xl p-10 overflow-hidden border-r border-black/5"
                           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                         >
                           {sheet.back && renderPage(sheet.back)}
-                          <div className="absolute bottom-4 left-6 text-xs text-rose-300">Page {index * 2 + 2}</div>
+                          <div className="absolute bottom-6 left-8 text-[10px] font-bold text-rose-200 uppercase tracking-widest">Page {index * 2 + 2}</div>
                         </div>
                       </motion.div>
                     );
                   })}
                </div>
-               <div className="absolute left-1/2 top-0 bottom-0 w-px bg-black/10 z-50" />
+               <div className="absolute left-1/2 top-0 bottom-0 w-px bg-black/5 z-50 shadow-[0_0_10px_rgba(0,0,0,0.1)]" />
             </div>
           </div>
         </div>

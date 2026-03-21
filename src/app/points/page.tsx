@@ -1,14 +1,14 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
-import { ChevronLeft, Coins, Trophy, Plus, ArrowRightLeft } from "lucide-react";
+import { FloatingHearts } from "@/components/shared/FloatingHearts";
+import { ChevronLeft, Coins, Trophy, Plus, ArrowRightLeft, Sparkles } from "lucide-react";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot, collection, query } from "firebase/firestore";
+import { doc, onSnapshot, collection } from "firebase/firestore";
 
 export default function PointsPage() {
   const { user } = useSoulAuth();
@@ -19,16 +19,12 @@ export default function PointsPage() {
   useEffect(() => {
     if (!user) return;
     
-    // 1. Listen to the user's total points
     const unsubPoints = onSnapshot(doc(db, "userProfiles", user), (doc) => {
       if (doc.exists()) {
         setPoints(doc.data()?.points || 0);
       }
     });
 
-    // 2. Listen to the transactions history
-    // We remove the orderBy from the query to avoid index issues in the prototype
-    // and sort in-memory instead for better reliability.
     const transactionsRef = collection(db, "userProfiles", user, "pointTransactions");
     const unsubTransactions = onSnapshot(transactionsRef, (snapshot) => {
       const txs = snapshot.docs.map(doc => ({ 
@@ -36,7 +32,6 @@ export default function PointsPage() {
         ...doc.data() 
       }));
       
-      // Sort by timestamp (descending) in-memory
       txs.sort((a: any, b: any) => {
         const timeA = a.timestamp?.seconds || 0;
         const timeB = b.timestamp?.seconds || 0;
@@ -44,8 +39,6 @@ export default function PointsPage() {
       });
 
       setTransactions(txs);
-    }, (error) => {
-      console.error("Transactions listener error:", error);
     });
 
     return () => {
@@ -55,68 +48,97 @@ export default function PointsPage() {
   }, [user]);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
-      {/* Explicit Back Button in Header */}
-      <div className="bg-white p-4 sticky top-0 border-b border-rose-100 flex items-center gap-3 z-10 shadow-sm">
-        <button 
-          onClick={() => router.push('/tasks')} 
-          className="p-2 -ml-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors"
-          aria-label="Go back to tasks"
-        >
-          <ChevronLeft size={24} />
-        </button>
-        <span className="font-bold text-lg text-slate-800">Points History</span>
-      </div>
+    <div className="min-h-screen bg-transparent flex flex-col text-white relative overflow-hidden">
+      <FloatingHearts />
+      <Navigation />
 
-      <div className="p-4 flex-1 overflow-y-auto">
+      <div className="pt-20 px-6 pb-24 flex-1 overflow-y-auto z-10 max-w-2xl mx-auto w-full">
+        <header className="flex items-center gap-4 mb-8">
+          <button 
+            onClick={() => router.push('/tasks')} 
+            className="p-3 glass rounded-2xl text-rose-400 hover:text-white transition-colors"
+          >
+            <ChevronLeft size={24} />
+          </button>
+          <div>
+            <h1 className="text-3xl font-headline font-bold">Heart Balance</h1>
+            <p className="text-rose-300/40 text-[10px] font-bold uppercase tracking-widest">Our Shared Economy</p>
+          </div>
+        </header>
+
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-3xl p-8 text-white shadow-xl shadow-orange-200 mb-8 relative overflow-hidden"
+          className="glass rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden mb-12"
         >
-          <div className="relative z-10">
-            <p className="text-yellow-100 font-medium mb-1 text-sm tracking-wide uppercase">Current Balance</p>
-            <h1 className="text-6xl font-bold tracking-tight">{points}</h1>
-            <span className="text-lg opacity-80 font-medium">Total Points</span>
+          {/* Decorative Elements */}
+          <div className="absolute top-0 right-0 p-8 opacity-10">
+            <Sparkles size={120} />
           </div>
-          <Coins className="absolute -right-6 -bottom-6 w-48 h-48 opacity-20 rotate-12" />
+          <div className="absolute -left-12 -bottom-12 w-48 h-48 bg-primary/20 blur-3xl rounded-full" />
+
+          <div className="relative z-10 flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-2xl bg-yellow-500/20 flex items-center justify-center text-yellow-400 mb-6 shadow-[0_0_20px_rgba(234,179,8,0.2)]">
+              <Coins size={32} />
+            </div>
+            <p className="text-rose-300/40 font-bold mb-2 text-xs tracking-[0.2em] uppercase">Available Points</p>
+            <h2 className="text-7xl font-black tracking-tighter mb-2 text-white drop-shadow-2xl">
+              {points}
+            </h2>
+            <div className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-rose-300/60 text-[10px] font-bold uppercase tracking-widest">
+              Keep the love flowing
+            </div>
+          </div>
         </motion.div>
 
-        <h3 className="font-bold text-slate-800 mb-4 px-1">Recent Activity</h3>
-        
-        <div className="space-y-3 pb-8">
-          {transactions.map((t) => (
-            <div key={t.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-full shrink-0 ${t.amount >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                  {t.amount >= 0 ? <Plus size={18} /> : <ArrowRightLeft size={18} />}
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-700 text-sm truncate pr-2">{t.description || t.type}</p>
-                  <p className="text-xs text-slate-400">
-                    {t.timestamp?.toDate ? t.timestamp.toDate().toLocaleDateString() : (t.timestamp ? "Just now" : "Processing...")}
-                  </p>
-                </div>
-              </div>
-              <span className={`font-bold text-lg whitespace-nowrap ${t.amount >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {t.amount >= 0 ? '+' : ''}{t.amount}
-              </span>
-            </div>
-          ))}
-
-          {transactions.length === 0 && (
-            <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 flex flex-col items-center gap-3">
-              <Trophy size={48} className="text-slate-100" />
-              <p className="text-slate-400 font-medium">No activity yet. Start earning points!</p>
-              <button 
-                onClick={() => router.push('/tasks')}
-                className="text-rose-500 font-bold text-sm hover:underline"
+        <section className="space-y-4">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-bold text-white/40 text-xs uppercase tracking-[0.2em]">Recent Activity</h3>
+            <div className="h-px flex-1 bg-white/5 ml-6" />
+          </div>
+          
+          <div className="space-y-4">
+            {transactions.map((t) => (
+              <motion.div 
+                key={t.id} 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="glass p-5 rounded-3xl border-white/5 flex items-center justify-between hover:bg-white/5 transition-colors"
               >
-                View Tasks
-              </button>
-            </div>
-          )}
-        </div>
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${t.amount >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                    {t.amount >= 0 ? <Plus size={20} /> : <ArrowRightLeft size={20} />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-white text-sm truncate">{t.description || t.type}</p>
+                    <p className="text-[10px] text-rose-300/30 uppercase font-bold tracking-widest mt-0.5">
+                      {t.timestamp?.toDate ? t.timestamp.toDate().toLocaleDateString() : (t.timestamp ? "Just now" : "Processing...")}
+                    </p>
+                  </div>
+                </div>
+                <div className={`font-black text-xl ${t.amount >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {t.amount >= 0 ? '+' : ''}{t.amount}
+                </div>
+              </motion.div>
+            ))}
+
+            {transactions.length === 0 && (
+              <div className="text-center py-20 glass rounded-[2.5rem] border-dashed border-white/5 flex flex-col items-center gap-4">
+                <Trophy size={48} className="text-white/5" />
+                <div className="space-y-1">
+                   <p className="text-white/40 font-bold text-sm">No activity recorded yet</p>
+                   <p className="text-white/20 text-xs italic">Start tasks to earn heart points</p>
+                </div>
+                <button 
+                  onClick={() => router.push('/tasks')}
+                  className="mt-2 text-primary font-bold text-xs uppercase tracking-widest hover:text-accent transition-colors"
+                >
+                  View Tasks
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

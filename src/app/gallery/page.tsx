@@ -1,9 +1,9 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import { motion, PanInfo } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
+import { FloatingHearts } from "@/components/shared/FloatingHearts";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
@@ -51,14 +51,23 @@ export default function GalleryPage() {
   const cardHeight = isMobile ? 240 : 320;
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-16">
+    <div className="min-h-screen bg-transparent pt-16 relative overflow-hidden">
+      <FloatingHearts />
       <Navigation />
-      <div className="flex flex-col items-center justify-center min-h-[80vh] overflow-hidden w-full relative">
-        <h2 className="text-2xl md:text-3xl font-serif text-rose-800 mb-8 z-10 font-bold">My Heart Gallery</h2>
+      
+      <div className="flex flex-col items-center justify-center min-h-[80vh] overflow-hidden w-full relative z-10 px-6">
+        <motion.h2 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-3xl md:text-5xl font-headline text-white mb-4 z-10 font-bold tracking-tight text-center"
+        >
+          Heart Gallery
+        </motion.h2>
+        <p className="text-rose-300/40 text-xs font-bold uppercase tracking-[0.2em] mb-12 text-center">Our frozen moments in time</p>
         
         <div 
           className="relative h-[400px] md:h-[500px] w-full flex items-center justify-center cursor-grab active:cursor-grabbing"
-          style={{ perspective: '1000px' }}
+          style={{ perspective: '2000px' }}
         >
           <motion.div
             className="relative w-0 h-0"
@@ -85,13 +94,18 @@ export default function GalleryPage() {
                     transformStyle: "preserve-3d",
                   }}
                 >
-                  <div className="w-full h-full rounded-xl bg-white p-1 shadow-lg border border-rose-100 overflow-hidden flex items-center justify-center">
+                  <div className="w-full h-full rounded-2xl glass p-1.5 shadow-2xl border border-white/10 overflow-hidden flex items-center justify-center group">
                     <img
                       src={img.url || img.imageUrl}
                       alt=""
-                      className="max-w-full max-h-full object-cover rounded-lg pointer-events-none"
+                      className="w-full h-full object-cover rounded-xl pointer-events-none transition-transform duration-700 group-hover:scale-110"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-rose-900/20 to-transparent pointer-events-none rounded-lg" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none rounded-xl" />
+                    {img.caption && (
+                      <div className="absolute bottom-4 left-4 right-4 z-10">
+                        <p className="text-white text-xs font-medium italic opacity-0 group-hover:opacity-100 transition-opacity duration-300">{img.caption}</p>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               );
@@ -99,9 +113,14 @@ export default function GalleryPage() {
           </motion.div>
         </div>
 
-        <p className="text-rose-400 mt-8 text-sm animate-pulse flex items-center gap-2 z-10 bg-white/50 px-3 py-1 rounded-full">
-          <span>👈</span> Swipe to spin <span>👉</span>
-        </p>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="text-rose-300/30 mt-12 text-[10px] uppercase tracking-[0.3em] font-bold flex items-center gap-4 z-10 glass px-6 py-2 rounded-full border-white/5"
+        >
+          <span>swipe to explore</span>
+        </motion.div>
       </div>
     </div>
   );
