@@ -12,12 +12,22 @@ import {
   Coins, 
   User, 
   ChevronLeft, 
-  Upload, 
-  Image as ImageIcon 
+  Upload 
 } from "lucide-react";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { db } from "@/lib/firebase";
-import { collection, query, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, increment, getDoc } from "firebase/firestore";
+import { 
+  collection, 
+  query, 
+  onSnapshot, 
+  serverTimestamp, 
+  doc, 
+  increment 
+} from "firebase/firestore";
+import { 
+  addDocumentNonBlocking, 
+  updateDocumentNonBlocking 
+} from "@/firebase/non-blocking-updates";
 import Link from "next/link";
 
 export default function TasksPage() {
@@ -36,61 +46,74 @@ export default function TasksPage() {
 
   useEffect(() => {
     if (!user) return;
+    
     const q = query(collection(db, "tasks"));
     const unsubTasks = onSnapshot(q, (snapshot) => {
       setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
+
     const unsubPoints = onSnapshot(doc(db, "userProfiles", user), (doc) => {
-      setPoints(doc.data()?.points || 0);
+      if (doc.exists()) {
+        setPoints(doc.data()?.points || 0);
+      }
     });
+
     return () => {
       unsubTasks();
       unsubPoints();
     };
   }, [user]);
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!title || !desc || !user || !partner) return;
     
     // Extra safety: only Shikhar can trigger task creation
     if (user.toLowerCase() !== 'shikhar') return;
 
-    try {
-      await addDoc(collection(db, "tasks"), {
-        title,
-        description: desc,
-        rewardPoints: Number(reward),
-        assignedBy: user,
-        assignedTo: partner,
-        status: "pending",
-        timestamp: serverTimestamp()
-      });
+    const taskData = {
+      title,
+      description: desc,
+      rewardPoints: Number(reward),
+      assignedById: user,
+      assignedToId: partner,
+      status: "pending",
+      assignedAt: new Date().toISOString(), // Using ISO string to match backend.json format expectations
+      createdAt: serverTimestamp()
+    };
 
-      setView('list');
-      setTitle(''); setDesc('');
-    } catch (err) {
-      console.error(err);
-    }
+    addDocumentNonBlocking(collection(db, "tasks"), taskData);
+
+    // Immediate UI feedback
+    setView('list');
+    setTitle(''); 
+    setDesc('');
   };
 
-  const handleComplete = async () => {
+  const handleComplete = () => {
     if (!selectedTask || !user) return;
-    try {
-      await updateDoc(doc(db, "tasks", selectedTask.id), {
-        status: "completed",
-        submissionText: proof,
-        completedAt: serverTimestamp()
-      });
-      await updateDoc(doc(db, "userProfiles", user), { points: increment(selectedTask.rewardPoints) });
-      setView('list');
-      setProof('');
-    } catch (err) {
-      console.error(err);
-    }
+    
+    const taskRef = doc(db, "tasks", selectedTask.id);
+    const userRef = doc(db, "userProfiles", user);
+
+    updateDocumentNonBlocking(taskRef, {
+      status: "completed",
+      submissionText: proof,
+      completedAt: new Date().toISOString()
+    });
+
+    updateDocumentNonBlocking(userRef, { 
+      points: increment(selectedTask.rewardPoints),
+      updatedAt: new Date().toISOString()
+    });
+
+    // Immediate UI feedback
+    setView('list');
+    setProof('');
   };
 
+  // Aligning filter with backend.json field names (assignedToId, assignedById)
   const displayedTasks = tasks.filter(t => 
-    filter === 'mine' ? t.assignedTo === user : t.assignedBy === user
+    filter === 'mine' ? t.assignedToId === user : t.assignedById === user
   );
 
   return (
@@ -146,7 +169,7 @@ export default function TasksPage() {
                   <p className="text-sm text-slate-500 line-clamp-2">{task.description}</p>
                   <div className="flex justify-between items-center mt-2 border-t pt-3">
                     <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                      <User size={14} /> {task.assignedBy}
+                      <User size={14} /> {task.assignedById}
                     </div>
                     <div className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-1 rounded-full font-bold text-xs">
                       <Trophy size={14} /> {task.rewardPoints} pts
@@ -178,22 +201,42 @@ export default function TasksPage() {
             <h2 className="text-xl font-bold text-slate-800">New Task</h2>
             <button onClick={() => setView('list')} className="p-2 bg-slate-100 rounded-full text-slate-500"><X size={20} /></button>
           </div>
-          <form className="p-4 space-y-6 overflow-y-auto pb-24">
+          <div className="p-4 space-y-6 overflow-y-auto pb-24">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Task Title</label>
-              <input className="w-full p-4 rounded-xl bg-slate-50 outline-none" placeholder="e.g., Wash the dishes" value={title} onChange={e => setTitle(e.target.value)} />
+              <input 
+                className="w-full p-4 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-rose-200" 
+                placeholder="e.g., Wash the dishes" 
+                value={title} 
+                onChange={e => setTitle(e.target.value)} 
+              />
             </div>
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Description</label>
-              <textarea className="w-full p-4 rounded-xl bg-slate-50 outline-none h-40" placeholder="Details..." value={desc} onChange={e => setDesc(e.target.value)} />
+              <textarea 
+                className="w-full p-4 rounded-xl bg-slate-50 outline-none h-40 focus:ring-2 focus:ring-rose-200" 
+                placeholder="Details..." 
+                value={desc} 
+                onChange={e => setDesc(e.target.value)} 
+              />
             </div>
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Reward Points</label>
-              <input type="number" className="w-full p-4 rounded-xl bg-slate-50 outline-none" value={reward} onChange={e => setReward(Number(e.target.value))} />
+              <input 
+                type="number" 
+                className="w-full p-4 rounded-xl bg-slate-50 outline-none focus:ring-2 focus:ring-rose-200" 
+                value={reward} 
+                onChange={e => setReward(Number(e.target.value))} 
+              />
             </div>
-          </form>
+          </div>
           <div className="p-4 border-t sticky bottom-0 bg-white">
-            <button onClick={handleCreate} className="w-full bg-rose-500 text-white py-4 rounded-xl font-bold">Assign Task</button>
+            <button 
+              onClick={handleCreate} 
+              className="w-full bg-rose-500 text-white py-4 rounded-xl font-bold active:scale-95 transition-transform"
+            >
+              Assign Task
+            </button>
           </div>
         </div>
       )}
@@ -217,11 +260,11 @@ export default function TasksPage() {
                  <p className="text-sm text-emerald-600 mt-2">"{selectedTask.submissionText}"</p>
                </div>
             )}
-            {selectedTask.status === 'pending' && selectedTask.assignedTo === user && (
+            {selectedTask.status === 'pending' && selectedTask.assignedToId === user && (
               <div className="space-y-4">
                 <h3 className="font-bold flex items-center gap-2"><Upload size={20} className="text-rose-500"/> Submission</h3>
                 <textarea 
-                  className="w-full p-4 bg-white border rounded-2xl outline-none min-h-[120px]" 
+                  className="w-full p-4 bg-white border rounded-2xl outline-none min-h-[120px] focus:ring-2 focus:ring-rose-200" 
                   placeholder="Note about completion..." 
                   value={proof} 
                   onChange={e => setProof(e.target.value)}
@@ -229,9 +272,14 @@ export default function TasksPage() {
               </div>
             )}
           </div>
-          {selectedTask.status === 'pending' && selectedTask.assignedTo === user && (
+          {selectedTask.status === 'pending' && selectedTask.assignedToId === user && (
             <div className="p-4 bg-white border-t sticky bottom-0">
-              <button onClick={handleComplete} className="w-full bg-emerald-500 text-white py-4 rounded-xl font-bold">Submit & Claim</button>
+              <button 
+                onClick={handleComplete} 
+                className="w-full bg-emerald-500 text-white py-4 rounded-xl font-bold active:scale-95 transition-transform"
+              >
+                Submit & Claim
+              </button>
             </div>
           )}
         </div>
