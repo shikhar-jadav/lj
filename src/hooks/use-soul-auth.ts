@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-const PARTNER_NAMES = ["Leo", "Mia"]; // Hardcoded for this private app as per requirements
+const PARTNER_NAMES = ["Snow", "Shikhar"]; // Updated names for the private app
 
 export function useSoulAuth() {
   const [user, setUser] = useState<string | null>(null);
@@ -33,5 +33,11 @@ export function useSoulAuth() {
     router.push("/login");
   };
 
-  return { user, login, logout, loading, partner: user === PARTNER_NAMES[0] ? PARTNER_NAMES[1] : PARTNER_NAMES[0] };
+  return { 
+    user, 
+    login, 
+    logout, 
+    loading, 
+    partner: user === PARTNER_NAMES[0] ? PARTNER_NAMES[1] : PARTNER_NAMES[0] 
+  };
 }
