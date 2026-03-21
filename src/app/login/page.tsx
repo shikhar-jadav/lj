@@ -11,14 +11,13 @@ import { FloatingHearts } from "@/components/shared/FloatingHearts";
 
 export default function LoginPage() {
   const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
   const { login } = useSoulAuth();
   const router = useRouter();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simplified for the private experience: password can be anything for this specific flow
+    // Identifies the user by name from the allowed partners list
     if (login(name)) {
       router.push("/camera");
     } else {
@@ -52,15 +51,6 @@ export default function LoginPage() {
               placeholder="Your name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="bg-background/40 border-primary/20 focus:border-primary text-center h-12 rounded-xl"
-            />
-          </div>
-          <div className="space-y-1">
-            <Input
-              type="password"
-              placeholder="Our secret word"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               className="bg-background/40 border-primary/20 focus:border-primary text-center h-12 rounded-xl"
             />
           </div>
