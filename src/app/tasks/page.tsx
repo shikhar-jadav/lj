@@ -79,7 +79,6 @@ export default function TasksPage() {
     if (!title || !desc || !user || !partner) return;
     
     const isSnow = user.toLowerCase() === 'snow';
-    const isShikhar = user.toLowerCase() === 'shikhar';
 
     // Snow logic: Requires 1000 points and deducts them
     if (isSnow) {
@@ -113,6 +112,7 @@ export default function TasksPage() {
     const taskData = {
       title,
       description: desc,
+      // If Snow, we use a fixed or hidden reward value (defaults to 50 in state)
       rewardPoints: Number(reward),
       assignedById: user,
       assignedToId: partner,
@@ -332,15 +332,17 @@ export default function TasksPage() {
                 onChange={e => setDesc(e.target.value)} 
               />
             </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Reward Points</label>
-              <input 
-                type="number" 
-                className="w-full p-4 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-400 focus:bg-white outline-none text-slate-900" 
-                value={reward} 
-                onChange={e => setReward(Number(e.target.value))} 
-              />
-            </div>
+            {user?.toLowerCase() !== 'snow' && (
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Reward Points</label>
+                <input 
+                  type="number" 
+                  className="w-full p-4 rounded-xl bg-slate-50 border-2 border-transparent focus:border-rose-400 focus:bg-white outline-none text-slate-900" 
+                  value={reward} 
+                  onChange={e => setReward(Number(e.target.value))} 
+                />
+              </div>
+            )}
           </div>
           <div className="p-4 border-t sticky bottom-0 bg-white">
             <button 
