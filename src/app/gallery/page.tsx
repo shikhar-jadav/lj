@@ -1,67 +1,27 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { motion, AnimatePresence, PanInfo } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion, PanInfo } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { db, storage } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, doc, getDoc, setDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { Music, Volume2, VolumeX, Sparkles, Play, Upload, Loader2 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-
-// Precisely timed lyrics for "With You" by AP Dhillon
-const WITH_YOU_LYRICS = [
-  { time: 0, text: "♪" },
-  { time: 2, text: "Mainu tere naal rehna" },
-  { time: 6, text: "Mere dil di tu rani" },
-  { time: 10, text: "Har pal teri yaad" },
-  { time: 14, text: "Satave ni deewani" },
-  { time: 18, text: "Door kade na jaavin" },
-  { time: 22, text: "Metho door na tu jaavin" },
-  { time: 26, text: "Mere saahan vich tu ae" },
-  { time: 30, text: "Meri rooh vich tu ae" },
-  { time: 34, text: "Tu hi mera jahan ae" },
-  { time: 38, text: "Mainu tere naal rehna..." },
-  { time: 42, text: "Tere naal hi marna" },
-  { time: 46, text: "Har janam vich tenu" },
-  { time: 50, text: "Apna bana ke rakhna" },
-  { time: 54, text: "♪" },
-];
+import { db } from "@/lib/firebase";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { Sparkles } from "lucide-react";
 
 export default function GalleryPage() {
   const [rotation, setRotation] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [images, setImages] = useState<any[]>([]);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
-  
-  // Audio & Lyrics State
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [songUrl, setSongUrl] = useState<string>("");
-  const [currentTime, setCurrentTime] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [activeLine, setActiveLine] = useState<string>("");
-  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
-    // 1. Fetch images
+    // Fetch images from Firestore
     const q = query(collection(db, "galleryImages"), orderBy("timestamp", "desc"));
     const unsub = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setImages(docs.length > 0 ? docs : PlaceHolderImages.map(p => ({ url: p.imageUrl, ...p })));
     });
-
-    // 2. Fetch saved song URL from Firestore
-    const fetchSong = async () => {
-      const songDoc = await getDoc(doc(db, "appMetadata", "galleryMusic"));
-      if (songDoc.exists()) {
-        setSongUrl(songDoc.data().url);
-      }
-    };
-    fetchSong();
 
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
@@ -72,7 +32,7 @@ export default function GalleryPage() {
     };
   }, []);
 
-  // Continuous auto-rotation
+  // Continuous auto-rotation when not dragging
   useEffect(() => {
     let animationFrameId: number;
     const animate = () => {
@@ -85,65 +45,8 @@ export default function GalleryPage() {
     return () => cancelAnimationFrame(animationFrameId);
   }, [isDragging]);
 
-  // Sync lyrics with audio
-  useEffect(() => {
-    const currentLine = WITH_YOU_LYRICS.reduce((prev, curr) => {
-      if (currentTime >= curr.time) return curr;
-      return prev;
-    }, WITH_YOU_LYRICS[0]);
-    
-    if (currentLine.text !== activeLine) {
-      setActiveLine(currentLine.text);
-    }
-  }, [currentTime, activeLine]);
-
   const handlePan = (_: any, info: PanInfo) => {
     setRotation(prev => prev + info.delta.x * 0.5);
-  };
-
-  const toggleMute = () => {
-    if (audioRef.current) {
-      audioRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const startMusic = () => {
-    if (audioRef.current && songUrl) {
-      audioRef.current.play().catch(console.error);
-      setIsPlaying(true);
-    } else {
-      toast({
-        title: "No Music Found",
-        description: "Please upload an MP3 file to start the vibe.",
-      });
-    }
-  };
-
-  const handleMusicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith('audio/')) return;
-
-    setIsUploading(true);
-    try {
-      const musicRef = ref(storage, `music/gallery_bg.mp3`);
-      await uploadBytes(musicRef, file);
-      const url = await getDownloadURL(musicRef);
-      
-      // Save URL to Firestore so it persists for both users
-      await setDoc(doc(db, "appMetadata", "galleryMusic"), {
-        url: url,
-        updatedAt: new Date().toISOString()
-      });
-
-      setSongUrl(url);
-      toast({ title: "Music Updated!", description: "The sanctuary now has a new voice." });
-    } catch (err) {
-      console.error(err);
-      toast({ variant: "destructive", title: "Upload Failed", description: "Check if Storage is enabled in Console." });
-    } finally {
-      setIsUploading(false);
-    }
   };
 
   const isMobile = windowWidth < 768;
@@ -155,85 +58,6 @@ export default function GalleryPage() {
     <div className="min-h-screen bg-transparent pt-16 relative overflow-hidden">
       <Navigation />
 
-      {songUrl && (
-        <audio 
-          ref={audioRef}
-          src={songUrl} 
-          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          loop
-        />
-      )}
-      
-      {/* Cinematic Spawning Lyrics */}
-      <div className="fixed top-24 left-8 z-50 max-w-[350px] pointer-events-none select-none h-40 flex items-start">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeLine}
-            initial={{ opacity: 0, y: 15, filter: "blur(12px)", scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)", scale: 1 }}
-            exit={{ opacity: 0, y: -15, filter: "blur(12px)", scale: 0.95 }}
-            transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
-            className="flex flex-col gap-2"
-          >
-            <span className="text-primary/40 text-[10px] font-black uppercase tracking-[0.4em] mb-1">
-              {isPlaying ? "Now Playing: With You" : "Silent Sanctuary"}
-            </span>
-            <h2 className="text-white text-3xl md:text-5xl font-headline font-bold leading-tight drop-shadow-[0_10px_20px_rgba(0,0,0,0.6)]">
-              {activeLine}
-            </h2>
-            {isPlaying && (
-              <motion.div 
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 2.5 }}
-                className="h-0.5 bg-gradient-to-r from-primary/60 to-transparent rounded-full mt-4 origin-left"
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* Music Control & Settings */}
-      <div className="fixed bottom-24 right-8 z-50 flex flex-col items-end gap-3">
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          className="hidden" 
-          accept="audio/mp3" 
-          onChange={handleMusicUpload} 
-        />
-        
-        <button 
-          onClick={() => fileInputRef.current?.click()}
-          className="p-3 glass rounded-full text-white/20 hover:text-white/60 transition-all text-[8px] font-bold uppercase tracking-widest flex items-center gap-2 mb-2"
-        >
-          {isUploading ? <Loader2 className="animate-spin" size={12} /> : <Upload size={12} />}
-          {isUploading ? "Uploading..." : "Change Song"}
-        </button>
-
-        {!isPlaying ? (
-          <motion.button 
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={startMusic}
-            className="px-8 py-4 bg-gradient-to-r from-primary to-accent rounded-full text-white text-xs font-black uppercase tracking-[0.2em] flex items-center gap-3 shadow-[0_15px_35px_rgba(204,51,153,0.4)] border border-white/20"
-          >
-            <Play size={18} fill="currentColor" /> Start the Vibe
-          </motion.button>
-        ) : (
-          <button 
-            onClick={toggleMute}
-            className="p-5 glass rounded-full text-rose-400 hover:text-white transition-all shadow-2xl border-white/5 active:scale-90"
-          >
-            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-          </button>
-        )}
-      </div>
-      
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
