@@ -1,11 +1,9 @@
-
 "use client";
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { useRouter } from "next/navigation";
-import { FloatingHearts } from "@/components/shared/FloatingHearts";
 import { Sparkles, Heart } from "lucide-react";
 
 export default function LoginPage() {
@@ -28,11 +26,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-      <FloatingHearts />
-      
       <motion.div 
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
         className="glass p-8 md:p-12 rounded-[3rem] shadow-2xl w-full max-w-md border-white/10 relative z-10 text-center"
       >
         <div className="mb-8">

@@ -1,12 +1,10 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { useRouter } from "next/navigation";
 import { Navigation } from "@/components/shared/Navigation";
-import { FloatingHearts } from "@/components/shared/FloatingHearts";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import { Heart, Trophy, Sparkles, Camera, BookHeart, Image as ImageIcon } from "lucide-react";
@@ -24,32 +22,32 @@ export default function HomePage() {
 
   useEffect(() => {
     if (user) {
-      // Listen to user profile
       const unsubUser = onSnapshot(doc(db, "userProfiles", user), (doc) => {
         if (doc.exists()) {
           setUserData(doc.data());
         }
       });
-
-      return () => {
-        unsubUser();
-      };
+      return () => unsubUser();
     }
   }, [user]);
 
   if (loading || !user) return null;
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden pb-24">
-      <FloatingHearts />
+    <div className="min-h-screen bg-transparent relative overflow-hidden pb-24">
       <Navigation />
       
-      <div className="relative z-10 flex flex-col px-6 pt-24 space-y-12 max-w-2xl mx-auto">
-        {/* Welcome Header */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="relative z-10 flex flex-col px-6 pt-24 space-y-12 max-w-2xl mx-auto"
+      >
         <header className="flex flex-col items-center text-center">
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
             className="mb-4"
           >
             <span className="px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-accent text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
@@ -64,22 +62,21 @@ export default function HomePage() {
           </p>
         </header>
 
-        {/* Hero Heart / Profile Section */}
         <section className="flex flex-col items-center">
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 100 }}
             className="relative"
           >
-            {/* Pulsing Outer Ring */}
             <motion.div 
-              animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.5, 0.3] }}
-              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+              animate={{ scale: [1, 1.05, 1], opacity: [0.3, 0.4, 0.3] }}
+              transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
               className="absolute -inset-6 bg-primary/20 rounded-full blur-3xl"
             />
             
             <div className="w-64 h-64 md:w-80 md:h-80 rounded-full p-2 bg-gradient-to-tr from-primary via-accent to-rose-400 shadow-[0_0_60px_rgba(204,51,153,0.3)] relative z-10">
-              <div className="w-full h-full rounded-full border-4 border-background overflow-hidden relative bg-muted flex items-center justify-center">
+              <div className="w-full h-full rounded-full border-4 border-[#1d161b] overflow-hidden relative bg-muted flex items-center justify-center">
                 {userData?.profileImageUrl ? (
                   <img src={userData.profileImageUrl} alt="My Love" className="w-full h-full object-cover" />
                 ) : (
@@ -99,8 +96,7 @@ export default function HomePage() {
           </motion.div>
         </section>
 
-        {/* Quick Access Menu */}
-        <section className="grid grid-cols-3 gap-6 pt-4">
+        <section className="grid grid-cols-3 gap-4 md:gap-6 pt-4">
           {[
             { icon: ImageIcon, label: "Gallery", path: "/gallery", color: "text-blue-400" },
             { icon: BookHeart, label: "Diary", path: "/diary", color: "text-rose-400" },
@@ -108,9 +104,12 @@ export default function HomePage() {
           ].map((item, idx) => (
             <motion.button
               key={idx}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 + idx * 0.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => router.push(item.path)}
-              className="glass p-6 rounded-[2rem] flex flex-col items-center gap-3 border-white/5 hover:bg-white/5 transition-colors group shadow-xl"
+              className="glass p-5 md:p-6 rounded-[2rem] flex flex-col items-center gap-3 border-white/5 hover:bg-white/10 transition-all group shadow-xl"
             >
               <div className="p-3 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-colors">
                 <item.icon size={24} className={item.color} />
@@ -120,8 +119,7 @@ export default function HomePage() {
           ))}
         </section>
 
-        {/* Footer Note */}
-        <footer className="pt-12 pb-12 text-center">
+        <footer className="pt-8 pb-12 text-center">
           <motion.p 
             animate={{ opacity: [0.2, 0.4, 0.2] }}
             transition={{ repeat: Infinity, duration: 5 }}
@@ -130,7 +128,7 @@ export default function HomePage() {
             Crafted with love for Snow & Shikhar
           </motion.p>
         </footer>
-      </div>
+      </motion.div>
     </div>
   );
 }

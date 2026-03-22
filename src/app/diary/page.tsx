@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
-import { FloatingHearts } from "@/components/shared/FloatingHearts";
 import { BookHeart, PenLine, Save, ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { db } from "@/lib/firebase";
@@ -74,7 +73,6 @@ export default function DiaryPage() {
   }
 
   const isMobile = windowWidth < 768;
-  const bookScale = isMobile ? (windowWidth / 800) : 1;
   const bookHeight = isMobile ? 500 : 550;
 
   const renderPage = (content: DiaryEntry) => {
@@ -121,11 +119,15 @@ export default function DiaryPage() {
 
   return (
     <div className="min-h-screen bg-transparent pt-20 relative overflow-hidden">
-      <FloatingHearts />
       <Navigation />
-      <div className="flex flex-col items-center justify-center min-h-[85vh] w-full px-6 relative z-10">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="flex flex-col items-center justify-center min-h-[85vh] w-full px-6 relative z-10"
+      >
         <motion.h2 
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-4xl font-headline text-white mb-2 flex items-center gap-3 font-bold"
         >
@@ -134,14 +136,14 @@ export default function DiaryPage() {
         <p className="text-rose-300/40 text-[10px] font-bold uppercase tracking-[0.3em] mb-12">Whispers of our journey</p>
 
         <div 
-          className="relative flex justify-center items-center transition-transform duration-300"
+          className="relative flex justify-center items-center"
           style={{ 
             width: '100%',
             height: `${bookHeight * (isMobile ? 0.8 : 1)}px`, 
             perspective: '2000px' 
           }}
         >
-          <div style={{ transform: `scale(${Math.max(0.4, Math.min(1.2, bookScale * 1.5))})` }} className="relative w-[700px] h-[500px]">
+          <div className="relative w-[700px] h-[500px] scale-[0.5] sm:scale-[0.7] md:scale-100 lg:scale-110">
             <button 
               onClick={() => setCurrentSheetIndex(p => Math.max(0, p - 1))} 
               className="absolute -left-16 top-1/2 -translate-y-1/2 z-50 p-4 glass rounded-2xl shadow-2xl text-rose-400 disabled:opacity-10 transition-all hover:text-white"
@@ -175,7 +177,7 @@ export default function DiaryPage() {
                         key={index}
                         initial={false}
                         animate={{ rotateY: isFlipped ? -180 : 0 }}
-                        transition={{ duration: 0.8, ease: "easeInOut" }}
+                        transition={{ duration: 0.6, ease: "easeInOut" }}
                         style={{ 
                           transformOrigin: 'left center',
                           transformStyle: 'preserve-3d',
@@ -185,7 +187,7 @@ export default function DiaryPage() {
                         }}
                       >
                         <div 
-                          className="absolute inset-0 bg-[#fffbf0] rounded-r-xl shadow-2xl p-10 overflow-hidden border-l border-black/5"
+                          className="absolute inset-0 bg-[#fffbf0] rounded-r-xl shadow-2xl p-6 md:p-10 overflow-hidden border-l border-black/5"
                           style={{ backfaceVisibility: 'hidden' }}
                         >
                           {renderPage(sheet.front)}
@@ -193,7 +195,7 @@ export default function DiaryPage() {
                         </div>
 
                         <div 
-                          className="absolute inset-0 bg-[#fffbf0] rounded-l-xl shadow-2xl p-10 overflow-hidden border-r border-black/5"
+                          className="absolute inset-0 bg-[#fffbf0] rounded-l-xl shadow-2xl p-6 md:p-10 overflow-hidden border-r border-black/5"
                           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                         >
                           {sheet.back && renderPage(sheet.back)}
@@ -207,7 +209,7 @@ export default function DiaryPage() {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

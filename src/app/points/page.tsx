@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
-import { FloatingHearts } from "@/components/shared/FloatingHearts";
 import { ChevronLeft, Coins, Trophy, Plus, ArrowRightLeft, Sparkles } from "lucide-react";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { useRouter } from "next/navigation";
@@ -49,10 +48,14 @@ export default function PointsPage() {
 
   return (
     <div className="min-h-screen bg-transparent flex flex-col text-white relative overflow-hidden">
-      <FloatingHearts />
       <Navigation />
 
-      <div className="pt-20 px-6 pb-24 flex-1 overflow-y-auto z-10 max-w-2xl mx-auto w-full">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="pt-20 px-6 pb-24 flex-1 overflow-y-auto z-10 max-w-2xl mx-auto w-full"
+      >
         <header className="flex items-center gap-4 mb-8">
           <button 
             onClick={() => router.push('/tasks')} 
@@ -67,11 +70,11 @@ export default function PointsPage() {
         </header>
 
         <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
           className="glass rounded-[2.5rem] p-10 text-white shadow-2xl relative overflow-hidden mb-12"
         >
-          {/* Decorative Elements */}
           <div className="absolute top-0 right-0 p-8 opacity-10">
             <Sparkles size={120} />
           </div>
@@ -98,11 +101,12 @@ export default function PointsPage() {
           </div>
           
           <div className="space-y-4">
-            {transactions.map((t) => (
+            {transactions.map((t, idx) => (
               <motion.div 
                 key={t.id} 
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 + idx * 0.05 }}
                 className="glass p-5 rounded-3xl border-white/5 flex items-center justify-between hover:bg-white/5 transition-colors"
               >
                 <div className="flex items-center gap-4">
@@ -139,7 +143,7 @@ export default function PointsPage() {
             )}
           </div>
         </section>
-      </div>
+      </motion.div>
     </div>
   );
 }

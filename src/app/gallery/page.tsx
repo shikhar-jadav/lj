@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { motion, PanInfo } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
-import { FloatingHearts } from "@/components/shared/FloatingHearts";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
@@ -52,12 +51,16 @@ export default function GalleryPage() {
 
   return (
     <div className="min-h-screen bg-transparent pt-16 relative overflow-hidden">
-      <FloatingHearts />
       <Navigation />
       
-      <div className="flex flex-col items-center justify-center min-h-[80vh] overflow-hidden w-full relative z-10 px-6">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="flex flex-col items-center justify-center min-h-[80vh] overflow-hidden w-full relative z-10 px-6"
+      >
         <motion.h2 
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-3xl md:text-5xl font-headline text-white mb-4 z-10 font-bold tracking-tight text-center"
         >
@@ -116,12 +119,12 @@ export default function GalleryPage() {
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
+          transition={{ delay: 0.5 }}
           className="text-rose-300/30 mt-12 text-[10px] uppercase tracking-[0.3em] font-bold flex items-center gap-4 z-10 glass px-6 py-2 rounded-full border-white/5"
         >
           <span>swipe to explore</span>
         </motion.div>
-      </div>
+      </motion.div>
     </div>
   );
 }
