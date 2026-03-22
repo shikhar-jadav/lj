@@ -6,8 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { useRouter } from "next/navigation";
 import { Navigation } from "@/components/shared/Navigation";
-import { DailyQuote } from "@/components/home/DailyQuote";
-import { DailyQuestion } from "@/components/home/DailyQuestion";
 import { FloatingHearts } from "@/components/shared/FloatingHearts";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
@@ -99,16 +97,6 @@ export default function HomePage() {
               <Heart size={32} fill="currentColor" />
             </motion.button>
           </motion.div>
-        </section>
-
-        {/* AI Inspiration Sections */}
-        <section className="space-y-8">
-          <div className="flex items-center justify-between px-2">
-            <h3 className="text-white/60 text-[10px] font-bold uppercase tracking-[0.3em]">Daily Connection</h3>
-            <div className="h-px flex-1 bg-white/5 mx-6" />
-          </div>
-          <DailyQuote />
-          <DailyQuestion />
         </section>
 
         {/* Quick Access Menu */}
