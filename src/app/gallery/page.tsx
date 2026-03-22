@@ -6,25 +6,28 @@ import { Navigation } from "@/components/shared/Navigation";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { Music, Volume2, VolumeX, Sparkles } from "lucide-react";
+import { Music, Volume2, VolumeX, Sparkles, Play } from "lucide-react";
 
-// Synchronized lyrics for "With You" by AP Dhillon
+// Replace this URL with your Firebase Storage Download URL
+const SONG_URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; 
+
+// Precisely timed lyrics for "With You" by AP Dhillon
 const WITH_YOU_LYRICS = [
   { time: 0, text: "♪" },
-  { time: 6, text: "Mainu tere naal rehna" },
-  { time: 10, text: "Mere dil di tu rani" },
-  { time: 14, text: "Har pal teri yaad" },
-  { time: 18, text: "Satave ni deewani" },
-  { time: 22, text: "Door kade na jaavin" },
-  { time: 26, text: "Metho door na tu jaavin" },
-  { time: 30, text: "Mere saahan vich tu ae" },
-  { time: 34, text: "Meri rooh vich tu ae" },
-  { time: 38, text: "Tu hi mera jahan ae" },
-  { time: 42, text: "Mainu tere naal rehna..." },
-  { time: 46, text: "Tere naal hi marna" },
-  { time: 50, text: "Har janam vich tenu" },
-  { time: 54, text: "Apna bana ke rakhna" },
-  { time: 58, text: "♪" },
+  { time: 2, text: "Mainu tere naal rehna" },
+  { time: 6, text: "Mere dil di tu rani" },
+  { time: 10, text: "Har pal teri yaad" },
+  { time: 14, text: "Satave ni deewani" },
+  { time: 18, text: "Door kade na jaavin" },
+  { time: 22, text: "Metho door na tu jaavin" },
+  { time: 26, text: "Mere saahan vich tu ae" },
+  { time: 30, text: "Meri rooh vich tu ae" },
+  { time: 34, text: "Tu hi mera jahan ae" },
+  { time: 38, text: "Mainu tere naal rehna..." },
+  { time: 42, text: "Tere naal hi marna" },
+  { time: 46, text: "Har janam vich tenu" },
+  { time: 50, text: "Apna bana ke rakhna" },
+  { time: 54, text: "♪" },
 ];
 
 export default function GalleryPage() {
@@ -50,6 +53,11 @@ export default function GalleryPage() {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     
+    // Attempt autoplay (most browsers block this, so we need the play button fallback)
+    if (audioRef.current) {
+      audioRef.current.play().catch(() => console.log("Autoplay blocked"));
+    }
+
     return () => {
       unsub();
       window.removeEventListener('resize', handleResize);
@@ -91,6 +99,13 @@ export default function GalleryPage() {
     }
   };
 
+  const startMusic = () => {
+    if (audioRef.current) {
+      audioRef.current.play();
+      setIsPlaying(true);
+    }
+  };
+
   const isMobile = windowWidth < 768;
   const radius = isMobile ? 180 : 280;
   const cardWidth = isMobile ? 160 : 220;
@@ -100,61 +115,63 @@ export default function GalleryPage() {
     <div className="min-h-screen bg-transparent pt-16 relative overflow-hidden">
       <Navigation />
 
-      {/* Audio Element - Placeholder for With You by AP Dhillon */}
       <audio 
         ref={audioRef}
-        src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" 
+        src={SONG_URL} 
         onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         loop
       />
       
-      {/* Lyrics Spawning Display - Fixed Top Left */}
-      <div className="fixed top-24 left-8 z-50 max-w-[300px] pointer-events-none select-none h-32 flex items-start">
+      {/* Cinematic Spawning Lyrics */}
+      <div className="fixed top-24 left-8 z-50 max-w-[350px] pointer-events-none select-none h-40 flex items-start">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeLine}
-            initial={{ opacity: 0, x: -20, filter: "blur(10px)" }}
-            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, x: 10, filter: "blur(10px)" }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
+            initial={{ opacity: 0, y: 10, filter: "blur(10px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -10, filter: "blur(10px)" }}
+            transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
             className="flex flex-col gap-2"
           >
             <span className="text-primary/40 text-[10px] font-black uppercase tracking-[0.4em] mb-1">
               {isPlaying ? "Now Playing: With You" : "Music Paused"}
             </span>
-            <h2 className="text-white text-3xl md:text-4xl font-headline font-bold leading-tight drop-shadow-2xl">
+            <h2 className="text-white text-3xl md:text-5xl font-headline font-bold leading-tight drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
               {activeLine}
             </h2>
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: "100%" }}
-              transition={{ duration: 4 }}
-              className="h-0.5 bg-primary/20 rounded-full mt-2"
+              transition={{ duration: 3 }}
+              className="h-0.5 bg-gradient-to-r from-primary/40 to-transparent rounded-full mt-2"
             />
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Music Controls */}
+      {/* Music Control / Start Button */}
       <div className="fixed bottom-24 right-8 z-50 flex flex-col items-end gap-3">
-        {!isPlaying && (
+        {!isPlaying ? (
           <motion.button 
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            onClick={() => audioRef.current?.play()}
-            className="px-6 py-3 bg-gradient-to-r from-primary to-accent rounded-full text-white text-xs font-black uppercase tracking-[0.2em] flex items-center gap-3 shadow-[0_10px_30px_rgba(204,51,153,0.4)] border border-white/20"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={startMusic}
+            className="px-8 py-4 bg-gradient-to-r from-primary to-accent rounded-full text-white text-xs font-black uppercase tracking-[0.2em] flex items-center gap-3 shadow-[0_15px_35px_rgba(204,51,153,0.4)] border border-white/20"
           >
-            <Music size={16} /> Tap to Play With You
+            <Play size={18} fill="currentColor" /> Start the Vibe
           </motion.button>
+        ) : (
+          <button 
+            onClick={toggleMute}
+            className="p-5 glass rounded-full text-rose-400 hover:text-white transition-all shadow-2xl border-white/5 active:scale-90"
+          >
+            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+          </button>
         )}
-        <button 
-          onClick={toggleMute}
-          className="p-4 glass rounded-full text-rose-400 hover:text-white transition-all shadow-2xl border-white/5"
-        >
-          {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-        </button>
       </div>
       
       <motion.div 
