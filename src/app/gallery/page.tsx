@@ -1,17 +1,44 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion, PanInfo } from "framer-motion";
+import { useEffect, useState, useRef } from "react";
+import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { Music, Volume2, VolumeX } from "lucide-react";
+
+// Lyrics for "With You" by AP Dhillon with approximate timestamps
+const WITH_YOU_LYRICS = [
+  { time: 0, text: "♪ (Music playing...)" },
+  { time: 5, text: "Mainu tere naal rehna" },
+  { time: 9, text: "Mere dil di tu rani" },
+  { time: 13, text: "Har pal teri yaad" },
+  { time: 17, text: "Satave ni deewani" },
+  { time: 21, text: "Door kade na jaavin" },
+  { time: 25, text: "Metho door na tu jaavin" },
+  { time: 29, text: "Mere saahan vich tu ae" },
+  { time: 33, text: "Meri rooh vich tu ae" },
+  { time: 37, text: "Tu hi mera jahan ae" },
+  { time: 41, text: "Mainu tere naal rehna..." },
+  { time: 45, text: "Tere naal hi marna" },
+  { time: 49, text: "Har janam vich tenu" },
+  { time: 53, text: "Apna bana ke rakhna" },
+  { time: 57, text: "♪ (Musical Break)" },
+];
 
 export default function GalleryPage() {
   const [rotation, setRotation] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [images, setImages] = useState<any[]>([]);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  
+  // Audio & Lyrics State
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [activeLineIndex, setActiveLineIndex] = useState(-1);
 
   useEffect(() => {
     const q = query(collection(db, "galleryImages"), orderBy("timestamp", "desc"));
@@ -22,6 +49,20 @@ export default function GalleryPage() {
 
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
+    
+    // Attempt to autoplay (browsers usually block this without interaction)
+    const playMusic = async () => {
+      if (audioRef.current) {
+        try {
+          await audioRef.current.play();
+          setIsPlaying(true);
+        } catch (err) {
+          console.warn("Autoplay blocked. User needs to interact first.");
+        }
+      }
+    };
+    playMusic();
+
     return () => {
       unsub();
       window.removeEventListener('resize', handleResize);
@@ -40,8 +81,26 @@ export default function GalleryPage() {
     return () => cancelAnimationFrame(animationFrameId);
   }, [isDragging]);
 
+  // Sync lyrics with audio
+  useEffect(() => {
+    const index = WITH_YOU_LYRICS.findIndex((line, i) => {
+      const nextLine = WITH_YOU_LYRICS[i + 1];
+      return currentTime >= line.time && (!nextLine || currentTime < nextLine.time);
+    });
+    if (index !== activeLineIndex) {
+      setActiveLineIndex(index);
+    }
+  }, [currentTime, activeLineIndex]);
+
   const handlePan = (_: any, info: PanInfo) => {
     setRotation(prev => prev + info.delta.x * 0.5);
+  };
+
+  const toggleMute = () => {
+    if (audioRef.current) {
+      audioRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
   };
 
   const isMobile = windowWidth < 768;
@@ -52,6 +111,69 @@ export default function GalleryPage() {
   return (
     <div className="min-h-screen bg-transparent pt-16 relative overflow-hidden">
       <Navigation />
+
+      {/* Audio Element - Update 'src' with your AP Dhillon MP3 file */}
+      <audio 
+        ref={audioRef}
+        src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" 
+        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        loop
+      />
+      
+      {/* Lyrics Display - Top Left */}
+      <div className="fixed top-24 left-8 z-50 max-w-[280px] md:max-w-[400px] pointer-events-none select-none">
+        <div className="flex flex-col gap-4">
+          <AnimatePresence mode="popLayout">
+            {WITH_YOU_LYRICS.map((line, i) => {
+              const isActive = i === activeLineIndex;
+              const isPast = i < activeLineIndex;
+              const isUpcoming = i > activeLineIndex && i <= activeLineIndex + 3;
+
+              if (!isActive && !isPast && !isUpcoming) return null;
+
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ 
+                    opacity: isActive ? 1 : (isPast ? 0.3 : 0.2), 
+                    x: isActive ? 10 : 0,
+                    scale: isActive ? 1.1 : 0.9,
+                    filter: isActive ? "blur(0px)" : "blur(1px)"
+                  }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.5 }}
+                  className={`font-headline font-bold leading-tight ${
+                    isActive ? "text-white text-2xl md:text-3xl" : "text-rose-300 text-lg md:text-xl"
+                  }`}
+                >
+                  {line.text}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Music Controls */}
+      <div className="fixed bottom-24 right-8 z-50 flex items-center gap-3">
+        <button 
+          onClick={toggleMute}
+          className="p-3 glass rounded-full text-rose-400 hover:text-white transition-all shadow-xl"
+        >
+          {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+        </button>
+        {!isPlaying && (
+          <button 
+            onClick={() => audioRef.current?.play()}
+            className="px-4 py-2 glass rounded-full text-rose-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2 animate-pulse"
+          >
+            <Music size={14} /> Play With You
+          </button>
+        )}
+      </div>
       
       <motion.div 
         initial={{ opacity: 0 }}
