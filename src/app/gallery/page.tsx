@@ -1,15 +1,15 @@
+
 "use client";
 
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { Music, Volume2, VolumeX, Sparkles, Play } from "lucide-react";
-
-// Replace this URL with your Firebase Storage Download URL
-const SONG_URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; 
+import { db, storage } from "@/lib/firebase";
+import { collection, query, orderBy, onSnapshot, doc, getDoc, setDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Music, Volume2, VolumeX, Sparkles, Play, Upload, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 // Precisely timed lyrics for "With You" by AP Dhillon
 const WITH_YOU_LYRICS = [
@@ -38,32 +38,44 @@ export default function GalleryPage() {
   
   // Audio & Lyrics State
   const audioRef = useRef<HTMLAudioElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [songUrl, setSongUrl] = useState<string>("");
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [activeLine, setActiveLine] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
+    // 1. Fetch images
     const q = query(collection(db, "galleryImages"), orderBy("timestamp", "desc"));
     const unsub = onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setImages(docs.length > 0 ? docs : PlaceHolderImages.map(p => ({ url: p.imageUrl, ...p })));
     });
 
+    // 2. Fetch saved song URL from Firestore
+    const fetchSong = async () => {
+      const songDoc = await getDoc(doc(db, "appMetadata", "galleryMusic"));
+      if (songDoc.exists()) {
+        setSongUrl(songDoc.data().url);
+      } else {
+        // Fallback or initial empty state
+        setSongUrl("");
+      }
+    };
+    fetchSong();
+
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     
-    // Attempt autoplay (most browsers block this, so we need the play button fallback)
-    if (audioRef.current) {
-      audioRef.current.play().catch(() => console.log("Autoplay blocked"));
-    }
-
     return () => {
       unsub();
       window.removeEventListener('resize', handleResize);
     };
   }, []);
 
+  // Continuous auto-rotation
   useEffect(() => {
     let animationFrameId: number;
     const animate = () => {
@@ -100,9 +112,40 @@ export default function GalleryPage() {
   };
 
   const startMusic = () => {
-    if (audioRef.current) {
-      audioRef.current.play();
+    if (audioRef.current && songUrl) {
+      audioRef.current.play().catch(console.error);
       setIsPlaying(true);
+    } else {
+      toast({
+        title: "No Music Found",
+        description: "Please upload an MP3 file to start the vibe.",
+      });
+    }
+  };
+
+  const handleMusicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('audio/')) return;
+
+    setIsUploading(true);
+    try {
+      const musicRef = ref(storage, `music/gallery_bg.mp3`);
+      await uploadBytes(musicRef, file);
+      const url = await getDownloadURL(musicRef);
+      
+      // Save URL to Firestore so it persists for both users
+      await setDoc(doc(db, "appMetadata", "galleryMusic"), {
+        url: url,
+        updatedAt: new Date().toISOString()
+      });
+
+      setSongUrl(url);
+      toast({ title: "Music Updated!", description: "The sanctuary now has a new voice." });
+    } catch (err) {
+      console.error(err);
+      toast({ variant: "destructive", title: "Upload Failed" });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -115,44 +158,62 @@ export default function GalleryPage() {
     <div className="min-h-screen bg-transparent pt-16 relative overflow-hidden">
       <Navigation />
 
-      <audio 
-        ref={audioRef}
-        src={SONG_URL} 
-        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        loop
-      />
+      {songUrl && (
+        <audio 
+          ref={audioRef}
+          src={songUrl} 
+          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          loop
+        />
+      )}
       
       {/* Cinematic Spawning Lyrics */}
       <div className="fixed top-24 left-8 z-50 max-w-[350px] pointer-events-none select-none h-40 flex items-start">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeLine}
-            initial={{ opacity: 0, y: 10, filter: "blur(10px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -10, filter: "blur(10px)" }}
-            transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+            initial={{ opacity: 0, y: 15, filter: "blur(12px)", scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)", scale: 1 }}
+            exit={{ opacity: 0, y: -15, filter: "blur(12px)", scale: 0.95 }}
+            transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
             className="flex flex-col gap-2"
           >
             <span className="text-primary/40 text-[10px] font-black uppercase tracking-[0.4em] mb-1">
-              {isPlaying ? "Now Playing: With You" : "Music Paused"}
+              {isPlaying ? "Now Playing: With You" : "Silent Sanctuary"}
             </span>
-            <h2 className="text-white text-3xl md:text-5xl font-headline font-bold leading-tight drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">
+            <h2 className="text-white text-3xl md:text-5xl font-headline font-bold leading-tight drop-shadow-[0_10px_20px_rgba(0,0,0,0.6)]">
               {activeLine}
             </h2>
             <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: "100%" }}
-              transition={{ duration: 3 }}
-              className="h-0.5 bg-gradient-to-r from-primary/40 to-transparent rounded-full mt-2"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 2.5 }}
+              className="h-0.5 bg-gradient-to-r from-primary/60 to-transparent rounded-full mt-4 origin-left"
             />
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Music Control / Start Button */}
+      {/* Music Control & Settings */}
       <div className="fixed bottom-24 right-8 z-50 flex flex-col items-end gap-3">
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          accept="audio/mp3" 
+          onChange={handleMusicUpload} 
+        />
+        
+        <button 
+          onClick={() => fileInputRef.current?.click()}
+          className="p-3 glass rounded-full text-white/20 hover:text-white/60 transition-all text-[8px] font-bold uppercase tracking-widest flex items-center gap-2 mb-2"
+        >
+          {isUploading ? <Loader2 className="animate-spin" size={12} /> : <Upload size={12} />}
+          {isUploading ? "Uploading..." : "Change Song"}
+        </button>
+
         {!isPlaying ? (
           <motion.button 
             initial={{ scale: 0.8, opacity: 0 }}
@@ -253,3 +314,4 @@ export default function GalleryPage() {
     </div>
   );
 }
+
