@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -5,8 +6,6 @@ import { motion } from "framer-motion";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { useRouter } from "next/navigation";
 import { Navigation } from "@/components/shared/Navigation";
-import { db } from "@/lib/firebase";
-import { doc, onSnapshot } from "firebase/firestore";
 import { Heart, Trophy, Sparkles, Camera, BookHeart, Image as ImageIcon } from "lucide-react";
 
 export default function HomePage() {
@@ -22,12 +21,8 @@ export default function HomePage() {
 
   useEffect(() => {
     if (user) {
-      const unsubUser = onSnapshot(doc(db, "userProfiles", user), (doc) => {
-        if (doc.exists()) {
-          setUserData(doc.data());
-        }
-      });
-      return () => unsubUser();
+      const profiles = JSON.parse(localStorage.getItem("soul-profiles") || "{}");
+      setUserData(profiles[user] || null);
     }
   }, [user]);
 

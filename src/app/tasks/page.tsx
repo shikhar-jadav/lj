@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
 import { 
@@ -13,29 +14,12 @@ import {
   ChevronLeft, 
   Upload,
   Image as ImageIcon,
-  Film,
-  Music,
-  FileIcon,
   Loader2,
   AlertCircle,
   Sparkles,
   BookHeart
 } from "lucide-react";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
-import { db, storage } from "@/lib/firebase";
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  serverTimestamp, 
-  doc, 
-  increment 
-} from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { 
-  addDocumentNonBlocking, 
-  updateDocumentNonBlocking 
-} from "@/firebase/non-blocking-updates";
 import Link from "next/link";
 import { toast } from "@/hooks/use-toast";
 
@@ -51,32 +35,16 @@ export default function TasksPage() {
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [reward, setReward] = useState(50);
-  const [demoFile, setDemoFile] = useState<File | null>(null);
-  const demoFileInputRef = useRef<HTMLInputElement>(null);
-
   const [proof, setProof] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (!user) return;
+    const storedTasks = JSON.parse(localStorage.getItem("soul-tasks") || "[]");
+    setTasks(storedTasks);
     
-    const q = query(collection(db, "tasks"));
-    const unsubTasks = onSnapshot(q, (snapshot) => {
-      setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    const unsubPoints = onSnapshot(doc(db, "userProfiles", user), (doc) => {
-      if (doc.exists()) {
-        setPoints(doc.data()?.points || 0);
-      }
-    });
-
-    return () => {
-      unsubTasks();
-      unsubPoints();
-    };
+    const profiles = JSON.parse(localStorage.getItem("soul-profiles") || "{}");
+    setPoints(profiles[user]?.points || 0);
   }, [user]);
 
   const handleCreate = async () => {
@@ -92,116 +60,59 @@ export default function TasksPage() {
       return;
     }
 
-    setIsUploading(true);
-    let demoUrl = "";
+    setIsProcessing(true);
+    const profiles = JSON.parse(localStorage.getItem("soul-profiles") || "{}");
 
-    try {
-      if (demoFile) {
-        const fileRef = ref(storage, `tasks/demos/${Date.now()}_${demoFile.name}`);
-        const snapshot = await uploadBytes(fileRef, demoFile);
-        demoUrl = await getDownloadURL(snapshot.ref);
-      }
-
-      if (isSnow) {
-        const userRef = doc(db, "userProfiles", user);
-        updateDocumentNonBlocking(userRef, { 
-          points: increment(-1000),
-          updatedAt: new Date().toISOString()
-        });
-        addDocumentNonBlocking(collection(db, "userProfiles", user, "pointTransactions"), {
-          userId: user,
-          amount: -1000,
-          type: "task_assignment_fee",
-          description: `Assigned task: ${title}`,
-          timestamp: serverTimestamp()
-        });
-      }
-
-      const taskData = {
-        title,
-        description: desc,
-        rewardPoints: isSnow ? 0 : Number(reward),
-        assignedById: user,
-        assignedToId: partner,
-        status: "pending",
-        demoMediaUrl: demoUrl,
-        assignedAt: new Date().toISOString(),
-        createdAt: serverTimestamp()
-      };
-
-      addDocumentNonBlocking(collection(db, "tasks"), taskData);
-      setView('list');
-      setTitle(''); 
-      setDesc('');
-      setDemoFile(null);
-      toast({ title: "Task Assigned!" });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsUploading(false);
+    if (isSnow) {
+      profiles[user].points -= 1000;
+      localStorage.setItem("soul-profiles", JSON.stringify(profiles));
+      setPoints(profiles[user].points);
     }
+
+    const newTask = {
+      id: Math.random().toString(36).substr(2, 9),
+      title,
+      description: desc,
+      rewardPoints: isSnow ? 0 : Number(reward),
+      assignedById: user,
+      assignedToId: partner,
+      status: "pending",
+      assignedAt: new Date().toISOString()
+    };
+
+    const updatedTasks = [...tasks, newTask];
+    localStorage.setItem("soul-tasks", JSON.stringify(updatedTasks));
+    setTasks(updatedTasks);
+    
+    setView('list');
+    setTitle(''); 
+    setDesc('');
+    setIsProcessing(false);
+    toast({ title: "Task Assigned!" });
   };
 
   const handleComplete = async () => {
     if (!selectedTask || !user) return;
-    setIsUploading(true);
-    let mediaUrl = "";
-    try {
-      if (selectedFile) {
-        const fileRef = ref(storage, `tasks/completions/${selectedTask.id}/${Date.now()}_${selectedFile.name}`);
-        const snapshot = await uploadBytes(fileRef, selectedFile);
-        mediaUrl = await getDownloadURL(snapshot.ref);
-      }
-      const taskRef = doc(db, "tasks", selectedTask.id);
-      const userRef = doc(db, "userProfiles", user);
-      updateDocumentNonBlocking(taskRef, {
-        status: "completed",
-        submissionText: proof,
-        submissionImageUrl: mediaUrl,
-        completedAt: new Date().toISOString()
-      });
-      updateDocumentNonBlocking(userRef, { 
-        points: increment(selectedTask.rewardPoints),
-        updatedAt: new Date().toISOString()
-      });
-      addDocumentNonBlocking(collection(db, "userProfiles", user, "pointTransactions"), {
-        userId: user,
-        amount: selectedTask.rewardPoints,
-        type: "task_reward",
-        description: `Completed: ${selectedTask.title}`,
-        relatedTaskId: selectedTask.id,
-        timestamp: serverTimestamp()
-      });
-      toast({ title: "Task Completed!", description: `+${selectedTask.rewardPoints} points` });
-      setView('list');
-      setProof('');
-      setSelectedFile(null);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsUploading(false);
-    }
+    setIsProcessing(true);
+    
+    const updatedTasks = tasks.map(t => 
+      t.id === selectedTask.id ? { ...t, status: "completed", submissionText: proof, completedAt: new Date().toISOString() } : t
+    );
+    localStorage.setItem("soul-tasks", JSON.stringify(updatedTasks));
+    setTasks(updatedTasks);
+
+    const profiles = JSON.parse(localStorage.getItem("soul-profiles") || "{}");
+    profiles[user].points += selectedTask.rewardPoints;
+    localStorage.setItem("soul-profiles", JSON.stringify(profiles));
+    setPoints(profiles[user].points);
+
+    toast({ title: "Task Completed!", description: `+${selectedTask.rewardPoints} points` });
+    setView('list');
+    setProof('');
+    setIsProcessing(false);
   };
 
   const displayedTasks = tasks.filter(t => filter === 'mine' ? t.assignedToId === user : t.assignedById === user);
-  const getFileIcon = (file: File) => {
-    if (file.type.startsWith('image/')) return <ImageIcon size={24} />;
-    if (file.type.startsWith('video/')) return <Film size={24} />;
-    if (file.type.startsWith('audio/')) return <Music size={24} />;
-    return <FileIcon size={24} />;
-  };
-
-  const renderMedia = (url: string) => {
-    if (!url) return null;
-    const lowerUrl = url.toLowerCase();
-    if (lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('video')) {
-      return <video src={url} controls className="w-full rounded-2xl mt-4 bg-black aspect-video shadow-2xl" />;
-    }
-    if (lowerUrl.includes('.mp3') || lowerUrl.includes('.wav') || lowerUrl.includes('audio')) {
-      return <audio src={url} controls className="w-full mt-4 glass p-4 rounded-2xl" />;
-    }
-    return <img src={url} alt="Media" className="w-full rounded-2xl mt-4 object-cover shadow-2xl border border-white/10" />;
-  };
 
   const canCreateTask = user?.toLowerCase() === 'shikhar' || (user?.toLowerCase() === 'snow' && points >= 1000);
 
@@ -337,34 +248,6 @@ export default function TasksPage() {
                 />
               </div>
 
-              <div className="space-y-3">
-                <label className="text-[10px] font-bold text-rose-300/40 uppercase tracking-[0.3em] ml-2">Reference Media (Optional)</label>
-                <input 
-                  type="file" 
-                  ref={demoFileInputRef} 
-                  className="hidden" 
-                  onChange={(e) => setDemoFile(e.target.files?.[0] || null)}
-                />
-                <button 
-                  onClick={() => demoFileInputRef.current?.click()}
-                  className="w-full h-40 border-2 border-dashed border-white/5 rounded-[2.5rem] flex flex-col items-center justify-center gap-4 text-white/20 hover:bg-white/5 hover:border-white/20 transition-all"
-                >
-                  {demoFile ? (
-                    <div className="flex flex-col items-center gap-3 text-rose-400">
-                      {getFileIcon(demoFile)}
-                      <span className="text-xs font-bold truncate max-w-[200px]">{demoFile.name}</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="p-4 glass rounded-3xl text-rose-500/30">
-                        <ImageIcon size={32} />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Add Reference File</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
               {user?.toLowerCase() !== 'snow' && (
                 <div className="space-y-3">
                   <label className="text-[10px] font-bold text-rose-300/40 uppercase tracking-[0.3em] ml-2">Bounty (Points)</label>
@@ -384,11 +267,11 @@ export default function TasksPage() {
             <div className="pt-6 border-t border-white/5 mt-auto">
               <button 
                 onClick={handleCreate} 
-                disabled={isUploading || !title || !desc}
+                disabled={isProcessing || !title || !desc}
                 className="w-full bg-primary text-white py-6 rounded-[2rem] font-black text-lg uppercase tracking-[0.2em] shadow-2xl hover:bg-accent disabled:opacity-30 transition-all flex items-center justify-center gap-3"
               >
-                {isUploading ? <Loader2 className="animate-spin" /> : <Sparkles size={20} />}
-                {isUploading ? "Assigning..." : (user?.toLowerCase() === 'snow' ? "Assign (-1000 pts)" : "Send Challenge")}
+                {isProcessing ? <Loader2 className="animate-spin" /> : <Sparkles size={20} />}
+                {isProcessing ? "Assigning..." : (user?.toLowerCase() === 'snow' ? "Assign (-1000 pts)" : "Send Challenge")}
               </button>
             </div>
           </motion.div>
@@ -421,12 +304,6 @@ export default function TasksPage() {
                  </div>
                  <h3 className="text-[10px] font-bold text-rose-300/40 uppercase tracking-widest mb-4">The Challenge</h3>
                  <p className="text-white/90 leading-relaxed font-serif text-lg italic">"{selectedTask.description}"</p>
-                 {selectedTask.demoMediaUrl && (
-                   <div className="mt-8 pt-8 border-t border-white/5">
-                      <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest mb-4">Reference Material</h4>
-                      {renderMedia(selectedTask.demoMediaUrl)}
-                   </div>
-                 )}
               </div>
               
               {selectedTask.status === 'completed' && (
@@ -436,42 +313,11 @@ export default function TasksPage() {
                    </div>
                    <h3 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-4">Mission Accomplished</h3>
                    <p className="text-white/70 italic text-sm leading-relaxed mb-6">"{selectedTask.submissionText}"</p>
-                   {renderMedia(selectedTask.submissionImageUrl)}
                  </div>
               )}
 
               {selectedTask.status === 'pending' && selectedTask.assignedToId === user && (
                 <div className="space-y-8">
-                  <div className="space-y-3">
-                    <h3 className="text-[10px] font-bold text-rose-300/40 uppercase tracking-widest ml-4 flex items-center gap-2">
-                      <Upload size={14} className="text-primary"/> Proof of completion
-                    </h3>
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      className="hidden" 
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                    />
-                    <button 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full h-40 border-2 border-dashed border-white/5 rounded-[2.5rem] flex flex-col items-center justify-center gap-4 text-white/20 hover:bg-white/5 hover:border-white/20 transition-all"
-                    >
-                      {selectedFile ? (
-                        <div className="flex flex-col items-center gap-3 text-emerald-400">
-                          {getFileIcon(selectedFile)}
-                          <span className="text-xs font-bold truncate max-w-[200px]">{selectedFile.name}</span>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="p-4 glass rounded-3xl text-emerald-500/30">
-                            <ImageIcon size={32} />
-                          </div>
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Upload your proof</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-
                   <div className="space-y-3">
                     <h3 className="text-[10px] font-bold text-rose-300/40 uppercase tracking-widest ml-4">Sweet Note</h3>
                     <textarea 
@@ -489,11 +335,11 @@ export default function TasksPage() {
               <div className="pt-6 border-t border-white/5 mt-auto">
                 <button 
                   onClick={handleComplete} 
-                  disabled={isUploading || !proof}
+                  disabled={isProcessing || !proof}
                   className="w-full bg-emerald-500 text-white py-6 rounded-[2rem] font-black text-lg uppercase tracking-[0.2em] shadow-2xl hover:bg-emerald-600 disabled:opacity-30 transition-all flex items-center justify-center gap-3"
                 >
-                  {isUploading ? <Loader2 className="animate-spin" /> : <CheckCircle size={20} />}
-                  {isUploading ? "Uploading..." : "Submit & Claim Bounty"}
+                  {isProcessing ? <Loader2 className="animate-spin" /> : <CheckCircle size={20} />}
+                  {isProcessing ? "Processing..." : "Submit & Claim Bounty"}
                 </button>
               </div>
             )}

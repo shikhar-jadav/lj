@@ -1,13 +1,11 @@
+
 "use client";
 
 import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
-import { storage, db } from "@/lib/firebase";
-import { ref, uploadString, getDownloadURL } from "firebase/storage";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { CameraOff, Heart, Camera, Sparkles, Loader2, RefreshCw } from "lucide-react";
+import { Heart, Camera, Sparkles, Loader2, RefreshCw } from "lucide-react";
 
 export default function CameraPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -82,25 +80,19 @@ export default function CameraPage() {
   const handleSave = async () => {
     if (!captured || !user) return;
     setLoading(true);
-    try {
-      const storageRef = ref(storage, `profiles/${user}.jpg`);
-      await uploadString(storageRef, captured, 'data_url');
-      const url = await getDownloadURL(storageRef);
-      
-      await setDoc(doc(db, "userProfiles", user), {
-        id: user,
-        name: user,
-        profileImageUrl: url,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
+    
+    const profiles = JSON.parse(localStorage.getItem("soul-profiles") || "{}");
+    profiles[user] = {
+      ...profiles[user],
+      profileImageUrl: captured,
+      updatedAt: new Date().toISOString()
+    };
+    localStorage.setItem("soul-profiles", JSON.stringify(profiles));
 
-      router.push("/");
-    } catch (err) {
-      console.error("Failed to save profile image:", err);
-      router.push("/");
-    } finally {
+    setTimeout(() => {
       setLoading(false);
-    }
+      router.push("/");
+    }, 500);
   };
 
   return (

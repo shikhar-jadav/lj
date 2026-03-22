@@ -1,19 +1,17 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
 import { BookHeart, PenLine, Save, ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
-import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
 
 interface DiaryEntry {
   id: string;
   text: string;
   author: string;
-  date?: string;
-  timestamp?: any;
+  date: string;
   isEditor?: boolean;
 }
 
@@ -26,42 +24,37 @@ export default function DiaryPage() {
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
 
   useEffect(() => {
-    const q = query(collection(db, "diaryEntries"), orderBy("timestamp", "asc"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DiaryEntry));
-      setEntries(docs);
-      const totalSheets = Math.ceil((docs.length + 1) / 2);
-      setCurrentSheetIndex(Math.max(0, totalSheets - 1));
-    });
+    const stored = JSON.parse(localStorage.getItem("soul-diary") || "[]");
+    setEntries(stored);
+    const totalSheets = Math.ceil((stored.length + 1) / 2);
+    setCurrentSheetIndex(Math.max(0, totalSheets - 1));
 
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
-    return () => {
-      unsub();
-      window.removeEventListener('resize', handleResize);
-    };
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const handleSave = async () => {
     if (!newText.trim() || !user) return;
     setIsSaving(true);
-    try {
-      await addDoc(collection(db, "diaryEntries"), {
-        text: newText,
-        author: user,
-        timestamp: serverTimestamp(),
-      });
-      setNewText("");
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSaving(false);
-    }
+    
+    const newEntry: DiaryEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      text: newText,
+      author: user,
+      date: new Date().toLocaleDateString()
+    };
+
+    const updated = [...entries, newEntry];
+    localStorage.setItem("soul-diary", JSON.stringify(updated));
+    setEntries(updated);
+    setNewText("");
+    setIsSaving(false);
   };
 
   const contentList: DiaryEntry[] = [
     ...entries, 
-    { id: 'editor', isEditor: true, text: '', author: '' }
+    { id: 'editor', isEditor: true, text: '', author: '', date: '' }
   ];
 
   const sheets = [];
@@ -104,7 +97,7 @@ export default function DiaryPage() {
       return (
         <div className="flex flex-col h-full">
           <div className="text-right text-xs text-rose-400 font-serif mb-2 flex justify-end gap-2 items-center">
-             {content.timestamp?.toDate().toLocaleDateString() || "Today"} <Heart size={10} className="fill-rose-300 text-rose-300"/>
+             {content.date} <Heart size={10} className="fill-rose-300 text-rose-300"/>
           </div>
           <p className="flex-1 font-serif text-rose-900 text-lg leading-loose whitespace-pre-wrap overflow-y-auto pr-1">
             {content.text}

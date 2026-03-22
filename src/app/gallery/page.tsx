@@ -5,8 +5,6 @@ import { useEffect, useState } from "react";
 import { motion, PanInfo } from "framer-motion";
 import { Navigation } from "@/components/shared/Navigation";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
-import { db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { Sparkles } from "lucide-react";
 
 export default function GalleryPage() {
@@ -16,23 +14,17 @@ export default function GalleryPage() {
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
 
   useEffect(() => {
-    // Fetch images from Firestore
-    const q = query(collection(db, "galleryImages"), orderBy("timestamp", "desc"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setImages(docs.length > 0 ? docs : PlaceHolderImages.map(p => ({ url: p.imageUrl, ...p })));
-    });
+    const storedImages = JSON.parse(localStorage.getItem("soul-gallery") || "[]");
+    setImages(storedImages.length > 0 ? storedImages : PlaceHolderImages.map(p => ({ url: p.imageUrl, ...p })));
 
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     
     return () => {
-      unsub();
       window.removeEventListener('resize', handleResize);
     };
   }, []);
 
-  // Continuous auto-rotation when not dragging
   useEffect(() => {
     let animationFrameId: number;
     const animate = () => {

@@ -3,9 +3,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
-import { signInAnonymously } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
 const PARTNER_NAMES = ["Snow", "Shikhar"];
 
@@ -15,27 +12,16 @@ export function useSoulAuth() {
   const router = useRouter();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const stored = localStorage.getItem("soul-user");
-      if (stored) {
-        const matched = PARTNER_NAMES.find(n => n.toLowerCase() === stored.toLowerCase());
-        if (matched) {
-          setUser(matched);
-          if (!auth.currentUser) {
-            try {
-              await signInAnonymously(auth);
-            } catch (e) {
-              console.error("Silent sign-in failed", e);
-            }
-          }
-        } else {
-          localStorage.removeItem("soul-user");
-          setUser(null);
-        }
+    const stored = localStorage.getItem("soul-user");
+    if (stored) {
+      const matched = PARTNER_NAMES.find(n => n.toLowerCase() === stored.toLowerCase());
+      if (matched) {
+        setUser(matched);
+      } else {
+        localStorage.removeItem("soul-user");
       }
-      setLoading(false);
-    };
-    checkAuth();
+    }
+    setLoading(false);
   }, []);
 
   const login = async (name: string) => {
@@ -43,30 +29,20 @@ export function useSoulAuth() {
     const matched = PARTNER_NAMES.find(n => n.toLowerCase() === cleanName);
     
     if (matched) {
-      try {
-        await signInAnonymously(auth);
-        
-        // Ensure user profile exists in Firestore
-        const userRef = doc(db, "userProfiles", matched);
-        const userSnap = await getDoc(userRef);
-        
-        if (!userSnap.exists()) {
-          await setDoc(userRef, {
-            id: matched,
-            name: matched,
-            points: matched === "Shikhar" ? 500 : 0,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp()
-          });
-        }
-
-        localStorage.setItem("soul-user", matched);
-        setUser(matched);
-        return true;
-      } catch (err) {
-        console.error("Firebase Auth Error:", err);
-        return false;
+      localStorage.setItem("soul-user", matched);
+      setUser(matched);
+      // Initialize local profile if it doesn't exist
+      const profiles = JSON.parse(localStorage.getItem("soul-profiles") || "{}");
+      if (!profiles[matched]) {
+        profiles[matched] = {
+          id: matched,
+          name: matched,
+          points: matched === "Shikhar" ? 500 : 0,
+          createdAt: new Date().toISOString()
+        };
+        localStorage.setItem("soul-profiles", JSON.stringify(profiles));
       }
+      return true;
     }
     return false;
   };
@@ -74,7 +50,6 @@ export function useSoulAuth() {
   const logout = () => {
     localStorage.removeItem("soul-user");
     setUser(null);
-    auth.signOut();
     router.push("/login");
   };
 
