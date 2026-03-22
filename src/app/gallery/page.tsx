@@ -6,25 +6,25 @@ import { Navigation } from "@/components/shared/Navigation";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { Music, Volume2, VolumeX } from "lucide-react";
+import { Music, Volume2, VolumeX, Sparkles } from "lucide-react";
 
-// Lyrics for "With You" by AP Dhillon with approximate timestamps
+// Synchronized lyrics for "With You" by AP Dhillon
 const WITH_YOU_LYRICS = [
-  { time: 0, text: "♪ (Music playing...)" },
-  { time: 5, text: "Mainu tere naal rehna" },
-  { time: 9, text: "Mere dil di tu rani" },
-  { time: 13, text: "Har pal teri yaad" },
-  { time: 17, text: "Satave ni deewani" },
-  { time: 21, text: "Door kade na jaavin" },
-  { time: 25, text: "Metho door na tu jaavin" },
-  { time: 29, text: "Mere saahan vich tu ae" },
-  { time: 33, text: "Meri rooh vich tu ae" },
-  { time: 37, text: "Tu hi mera jahan ae" },
-  { time: 41, text: "Mainu tere naal rehna..." },
-  { time: 45, text: "Tere naal hi marna" },
-  { time: 49, text: "Har janam vich tenu" },
-  { time: 53, text: "Apna bana ke rakhna" },
-  { time: 57, text: "♪ (Musical Break)" },
+  { time: 0, text: "♪" },
+  { time: 6, text: "Mainu tere naal rehna" },
+  { time: 10, text: "Mere dil di tu rani" },
+  { time: 14, text: "Har pal teri yaad" },
+  { time: 18, text: "Satave ni deewani" },
+  { time: 22, text: "Door kade na jaavin" },
+  { time: 26, text: "Metho door na tu jaavin" },
+  { time: 30, text: "Mere saahan vich tu ae" },
+  { time: 34, text: "Meri rooh vich tu ae" },
+  { time: 38, text: "Tu hi mera jahan ae" },
+  { time: 42, text: "Mainu tere naal rehna..." },
+  { time: 46, text: "Tere naal hi marna" },
+  { time: 50, text: "Har janam vich tenu" },
+  { time: 54, text: "Apna bana ke rakhna" },
+  { time: 58, text: "♪" },
 ];
 
 export default function GalleryPage() {
@@ -38,7 +38,7 @@ export default function GalleryPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [activeLineIndex, setActiveLineIndex] = useState(-1);
+  const [activeLine, setActiveLine] = useState<string>("");
 
   useEffect(() => {
     const q = query(collection(db, "galleryImages"), orderBy("timestamp", "desc"));
@@ -50,19 +50,6 @@ export default function GalleryPage() {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     
-    // Attempt to autoplay (browsers usually block this without interaction)
-    const playMusic = async () => {
-      if (audioRef.current) {
-        try {
-          await audioRef.current.play();
-          setIsPlaying(true);
-        } catch (err) {
-          console.warn("Autoplay blocked. User needs to interact first.");
-        }
-      }
-    };
-    playMusic();
-
     return () => {
       unsub();
       window.removeEventListener('resize', handleResize);
@@ -83,14 +70,15 @@ export default function GalleryPage() {
 
   // Sync lyrics with audio
   useEffect(() => {
-    const index = WITH_YOU_LYRICS.findIndex((line, i) => {
-      const nextLine = WITH_YOU_LYRICS[i + 1];
-      return currentTime >= line.time && (!nextLine || currentTime < nextLine.time);
-    });
-    if (index !== activeLineIndex) {
-      setActiveLineIndex(index);
+    const currentLine = WITH_YOU_LYRICS.reduce((prev, curr) => {
+      if (currentTime >= curr.time) return curr;
+      return prev;
+    }, WITH_YOU_LYRICS[0]);
+    
+    if (currentLine.text !== activeLine) {
+      setActiveLine(currentLine.text);
     }
-  }, [currentTime, activeLineIndex]);
+  }, [currentTime, activeLine]);
 
   const handlePan = (_: any, info: PanInfo) => {
     setRotation(prev => prev + info.delta.x * 0.5);
@@ -112,7 +100,7 @@ export default function GalleryPage() {
     <div className="min-h-screen bg-transparent pt-16 relative overflow-hidden">
       <Navigation />
 
-      {/* Audio Element - Update 'src' with your AP Dhillon MP3 file */}
+      {/* Audio Element - Placeholder for With You by AP Dhillon */}
       <audio 
         ref={audioRef}
         src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" 
@@ -122,57 +110,51 @@ export default function GalleryPage() {
         loop
       />
       
-      {/* Lyrics Display - Top Left */}
-      <div className="fixed top-24 left-8 z-50 max-w-[280px] md:max-w-[400px] pointer-events-none select-none">
-        <div className="flex flex-col gap-4">
-          <AnimatePresence mode="popLayout">
-            {WITH_YOU_LYRICS.map((line, i) => {
-              const isActive = i === activeLineIndex;
-              const isPast = i < activeLineIndex;
-              const isUpcoming = i > activeLineIndex && i <= activeLineIndex + 3;
-
-              if (!isActive && !isPast && !isUpcoming) return null;
-
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ 
-                    opacity: isActive ? 1 : (isPast ? 0.3 : 0.2), 
-                    x: isActive ? 10 : 0,
-                    scale: isActive ? 1.1 : 0.9,
-                    filter: isActive ? "blur(0px)" : "blur(1px)"
-                  }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.5 }}
-                  className={`font-headline font-bold leading-tight ${
-                    isActive ? "text-white text-2xl md:text-3xl" : "text-rose-300 text-lg md:text-xl"
-                  }`}
-                >
-                  {line.text}
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
+      {/* Lyrics Spawning Display - Fixed Top Left */}
+      <div className="fixed top-24 left-8 z-50 max-w-[300px] pointer-events-none select-none h-32 flex items-start">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeLine}
+            initial={{ opacity: 0, x: -20, filter: "blur(10px)" }}
+            animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, x: 10, filter: "blur(10px)" }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="flex flex-col gap-2"
+          >
+            <span className="text-primary/40 text-[10px] font-black uppercase tracking-[0.4em] mb-1">
+              {isPlaying ? "Now Playing: With You" : "Music Paused"}
+            </span>
+            <h2 className="text-white text-3xl md:text-4xl font-headline font-bold leading-tight drop-shadow-2xl">
+              {activeLine}
+            </h2>
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: "100%" }}
+              transition={{ duration: 4 }}
+              className="h-0.5 bg-primary/20 rounded-full mt-2"
+            />
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Music Controls */}
-      <div className="fixed bottom-24 right-8 z-50 flex items-center gap-3">
+      <div className="fixed bottom-24 right-8 z-50 flex flex-col items-end gap-3">
+        {!isPlaying && (
+          <motion.button 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            onClick={() => audioRef.current?.play()}
+            className="px-6 py-3 bg-gradient-to-r from-primary to-accent rounded-full text-white text-xs font-black uppercase tracking-[0.2em] flex items-center gap-3 shadow-[0_10px_30px_rgba(204,51,153,0.4)] border border-white/20"
+          >
+            <Music size={16} /> Tap to Play With You
+          </motion.button>
+        )}
         <button 
           onClick={toggleMute}
-          className="p-3 glass rounded-full text-rose-400 hover:text-white transition-all shadow-xl"
+          className="p-4 glass rounded-full text-rose-400 hover:text-white transition-all shadow-2xl border-white/5"
         >
           {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
         </button>
-        {!isPlaying && (
-          <button 
-            onClick={() => audioRef.current?.play()}
-            className="px-4 py-2 glass rounded-full text-rose-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2 animate-pulse"
-          >
-            <Music size={14} /> Play With You
-          </button>
-        )}
       </div>
       
       <motion.div 
@@ -181,14 +163,16 @@ export default function GalleryPage() {
         transition={{ duration: 0.4 }}
         className="flex flex-col items-center justify-center min-h-[80vh] overflow-hidden w-full relative z-10 px-6"
       >
-        <motion.h2 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-3xl md:text-5xl font-headline text-white mb-4 z-10 font-bold tracking-tight text-center"
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center mb-12"
         >
-          Heart Gallery
-        </motion.h2>
-        <p className="text-rose-300/40 text-xs font-bold uppercase tracking-[0.2em] mb-12 text-center">Our frozen moments in time</p>
+          <span className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-accent text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-2 mb-4">
+            <Sparkles size={12} /> Our Shared Moments
+          </span>
+          <h1 className="text-4xl md:text-6xl font-headline font-bold text-white tracking-tighter">Heart Gallery</h1>
+        </motion.div>
         
         <div 
           className="relative h-[400px] md:h-[500px] w-full flex items-center justify-center cursor-grab active:cursor-grabbing"
@@ -219,16 +203,18 @@ export default function GalleryPage() {
                     transformStyle: "preserve-3d",
                   }}
                 >
-                  <div className="w-full h-full rounded-2xl glass p-1.5 shadow-2xl border border-white/10 overflow-hidden flex items-center justify-center group">
+                  <div className="w-full h-full rounded-[2.5rem] glass p-2 shadow-2xl border border-white/10 overflow-hidden flex items-center justify-center group relative">
                     <img
                       src={img.url || img.imageUrl}
                       alt=""
-                      className="w-full h-full object-cover rounded-xl pointer-events-none transition-transform duration-700 group-hover:scale-110"
+                      className="w-full h-full object-cover rounded-[2rem] pointer-events-none transition-transform duration-1000 group-hover:scale-110"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none rounded-xl" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 pointer-events-none rounded-[2rem]" />
                     {img.caption && (
-                      <div className="absolute bottom-4 left-4 right-4 z-10">
-                        <p className="text-white text-xs font-medium italic opacity-0 group-hover:opacity-100 transition-opacity duration-300">{img.caption}</p>
+                      <div className="absolute bottom-6 left-6 right-6 z-10">
+                        <p className="text-white text-sm font-medium italic opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-2 group-hover:translate-y-0 tracking-wide font-serif">
+                          "{img.caption}"
+                        </p>
                       </div>
                     )}
                   </div>
@@ -241,10 +227,10 @@ export default function GalleryPage() {
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="text-rose-300/30 mt-12 text-[10px] uppercase tracking-[0.3em] font-bold flex items-center gap-4 z-10 glass px-6 py-2 rounded-full border-white/5"
+          transition={{ delay: 0.8 }}
+          className="text-rose-300/20 mt-16 text-[10px] uppercase tracking-[0.4em] font-black flex items-center gap-4 z-10 glass px-8 py-3 rounded-full border-white/5"
         >
-          <span>swipe to explore</span>
+          <span>swipe to travel through time</span>
         </motion.div>
       </motion.div>
     </div>
