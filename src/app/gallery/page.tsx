@@ -59,9 +59,6 @@ export default function GalleryPage() {
       const songDoc = await getDoc(doc(db, "appMetadata", "galleryMusic"));
       if (songDoc.exists()) {
         setSongUrl(songDoc.data().url);
-      } else {
-        // Fallback or initial empty state
-        setSongUrl("");
       }
     };
     fetchSong();
@@ -143,7 +140,7 @@ export default function GalleryPage() {
       toast({ title: "Music Updated!", description: "The sanctuary now has a new voice." });
     } catch (err) {
       console.error(err);
-      toast({ variant: "destructive", title: "Upload Failed" });
+      toast({ variant: "destructive", title: "Upload Failed", description: "Check if Storage is enabled in Console." });
     } finally {
       setIsUploading(false);
     }
@@ -186,12 +183,14 @@ export default function GalleryPage() {
             <h2 className="text-white text-3xl md:text-5xl font-headline font-bold leading-tight drop-shadow-[0_10px_20px_rgba(0,0,0,0.6)]">
               {activeLine}
             </h2>
-            <motion.div 
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{ duration: 2.5 }}
-              className="h-0.5 bg-gradient-to-r from-primary/60 to-transparent rounded-full mt-4 origin-left"
-            />
+            {isPlaying && (
+              <motion.div 
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 2.5 }}
+                className="h-0.5 bg-gradient-to-r from-primary/60 to-transparent rounded-full mt-4 origin-left"
+              />
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -314,4 +313,3 @@ export default function GalleryPage() {
     </div>
   );
 }
-
