@@ -19,7 +19,8 @@ import {
   FileIcon,
   Loader2,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  BookHeart
 } from "lucide-react";
 import { useSoulAuth } from "@/hooks/use-soul-auth";
 import { db, storage } from "@/lib/firebase";
